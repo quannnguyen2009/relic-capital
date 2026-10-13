@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Relic Capital
 
-## Getting Started
+An archaeology, research, and finance strategy game set across Vietnam's historical landscapes.
 
-First, run the development server:
+*Every excavation is an investment. Every discovery is a hypothesis.*
+
+---
+
+## 🏛️ Overview
+
+In **Relic Capital**, you direct an independent research institute for Vietnamese archaeology. Balance the thrill of fieldwork with institutional survival:
+- **Expeditions & Excavations**: Survey and excavate authentic and fictionalized historical sites across Vietnam (Cổ Loa, Trà Kiệu, Óc Eo, Má Thẹn, Hòa Bình, and more).
+- **Research Lab**: Unearth artifacts, form hypotheses, run material analyses, verify findings against field evidence, and publish peer-reviewed papers.
+- **Financial Strategy**: Manage institutional runway, cash flow, equipment depreciation, staff salaries, and research grants.
+- **Simulated Markets**: Navigate macroeconomic cycles and trade financial instruments to fund expensive deep-layer excavation campaigns.
+- **Codex & Archival Documentation**: Track discoveries, field notes, historical context, and archaeological methodologies.
+
+> **Note**: All currency (đ), financial markets, instruments, and select survey scenarios are simulated in-game models for gameplay purposes. Real archaeological sites and cultural traditions are referenced with respect and academic context.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Next.js](https://nextjs.org/) (App Router, React 18, TypeScript)
+- **Styling**: Tailwind CSS & Vanilla CSS design system with custom typography (Cormorant Garamond, Inter)
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
+- **Visualizations**: [Recharts](https://recharts.org/)
+- **Testing**: [Vitest](https://vitest.dev/)
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+ installed
+- npm or yarn / pnpm
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/quannnguyen2009/relic-capital.git
+cd relic-capital
+
+# Install dependencies
+npm install
+
+# Run the local development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🧪 Testing & Verification
 
-## Learn More
+Run the test suite and audit scripts:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Run unit & engine invariant tests
+npx vitest run
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Run end-to-end simulation audit
+npx vite-node scripts/full-audit.ts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Run smoke test script
+npx tsx scripts/smoke.ts
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📜 License & Asset Attributions
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+All Wikimedia Commons photographic assets and licenses are detailed in [`public/assets/ATTRIBUTIONS.md`](public/assets/ATTRIBUTIONS.md).
