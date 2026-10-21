@@ -4,6 +4,8 @@ An archaeology, research, and finance strategy game set across Vietnam's histori
 
 *Every excavation is an investment. Every discovery is a hypothesis.*
 
+🎮 **Play Live:** [https://reliccapital.vercel.app](https://reliccapital.vercel.app)
+
 ---
 
 ## 🏛️ Overview
