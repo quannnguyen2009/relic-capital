@@ -28,27 +28,144 @@ export default function ArchiveScreen() {
     return l;
   }, [s.artifacts, q, cat, status, sort]);
 
+  const [showCurate, setShowCurate] = useState(false);
+  const [curateTitle, setCurateTitle] = useState("Voices of Antiquity: Vietnam's Material Horizons");
+  const [curateTheme, setCurateTheme] = useState("Đông Sơn Bronze & Metalurgy");
+  const [curateSelected, setCurateSelected] = useState<string[]>([]);
+
+  const toggleSelectForExhibition = (uid: string) => {
+    setCurateSelected((prev) =>
+      prev.includes(uid) ? prev.filter((x) => x !== uid) : prev.length < 5 ? [...prev, uid] : prev
+    );
+  };
+
+  const handleLaunchExhibition = () => {
+    if (curateSelected.length < 2) return;
+    g.curateExhibition(curateTitle, curateTheme, curateSelected);
+    setShowCurate(false);
+    setCurateSelected([]);
+  };
+
   return (
     <div className="space-y-4">
-      <Panel title="Artifact Archive" sub="Every artifact is a structured record with hypotheses, evidence and uncertainty — not a single answer.">
-        <div className="flex flex-wrap gap-2 mb-4">
-          <input className="input !w-56" placeholder="Search name, id, description…" value={q} onChange={(e) => setQ(e.target.value)} />
-          <select className="input !w-40" value={cat} onChange={(e) => setCat(e.target.value)}>
-            <option value="all">All categories</option>
-            {Object.keys(CATEGORY_LABELS).map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS]}</option>)}
-          </select>
-          <select className="input !w-36" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="all">Any status</option>
-            <option value="unanalyzed">Unanalyzed</option>
-            <option value="classified">Classified</option>
-            <option value="verified">Verified</option>
-            <option value="published">Published</option>
-          </select>
-          <select className="input !w-40" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
-            <option value="recent">Newest first</option>
-            <option value="sig">Significance ↓</option>
-            <option value="conf">Confidence ↓</option>
-          </select>
+      {/* Active Museum Exhibition Showcase */}
+      {s.activeExhibition && (
+        <div className="panel-elevated p-4 border border-[#C28B49]/60 bg-[#C28B49]/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="tag border-[#C28B49] text-[#C28B49]">🏛 Active Exhibition</span>
+              <span className="text-xs text-[#A2B0B2]">
+                Day {Math.min(s.activeExhibition.durationDays, Math.max(1, s.day - s.activeExhibition.dayStarted + 1))} of {s.activeExhibition.durationDays}
+              </span>
+            </div>
+            <h3 className="font-display text-lg text-[#F0E9D9] mt-1">{s.activeExhibition.title}</h3>
+            <p className="text-xs text-[#A2B0B2]">{s.activeExhibition.theme} · Featuring {s.activeExhibition.artifactUids.length} curatorial finds</p>
+          </div>
+          <div className="flex items-center gap-4 text-xs num">
+            <div className="text-right">
+              <div className="text-[#6D9A83] font-bold">+{s.activeExhibition.dailyRevenue.toLocaleString()} đ / day</div>
+              <div className="text-[#A2B0B2]">Ticket gate receipts</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[#C28B49] font-bold">+{s.activeExhibition.reputationGain} Rep</div>
+              <div className="text-[#A2B0B2]">Completion prestige</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exhibition Curation Drawer / Builder */}
+      {showCurate && (
+        <div className="panel-elevated p-4 border border-[#6D9A83]">
+          <div className="flex justify-between items-baseline mb-3">
+            <h3 className="font-display text-base text-[#6D9A83]">Curate New Museum Exhibition</h3>
+            <button className="btn btn-ghost !py-0.5 !text-xs" onClick={() => setShowCurate(false)}>Close ✕</button>
+          </div>
+          <p className="text-xs text-[#A2B0B2] mb-3">
+            Select 2 to 5 artifacts from your vault. Public exhibitions generate daily ticket sales over a 14-day residency and culminate in an institutional prestige grant.
+          </p>
+          <div className="grid md:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="text-[0.65rem] uppercase text-[#A2B0B2] block mb-1">Exhibition Title</label>
+              <input className="input !w-full" value={curateTitle} onChange={(e) => setCurateTitle(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[0.65rem] uppercase text-[#A2B0B2] block mb-1">Curatorial Theme</label>
+              <select className="input !w-full" value={curateTheme} onChange={(e) => setCurateTheme(e.target.value)}>
+                <option value="Đông Sơn Bronze & Metalurgy">Đông Sơn Bronze & Metallurgy</option>
+                <option value="Maritime Spice & Ceramic Networks">Maritime Spice & Ceramic Networks</option>
+                <option value="Đại Việt Imperial Stoneware">Đại Việt Imperial Stoneware</option>
+                <option value="Sa Huỳnh Jar Burials & Ornaments">Sa Huỳnh Jar Burials & Ornaments</option>
+                <option value="Óc Eo Cosmopolitan Trade">Óc Eo Cosmopolitan Trade</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <div className="text-[0.65rem] uppercase text-[#A2B0B2] mb-1">
+              Select Artifacts ({curateSelected.length}/5 selected, minimum 2):
+            </div>
+            <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto">
+              {s.artifacts.map((a) => {
+                const isSelected = curateSelected.includes(a.uid);
+                return (
+                  <button
+                    key={a.uid}
+                    onClick={() => toggleSelectForExhibition(a.uid)}
+                    className={`text-xs px-2.5 py-1.5 rounded border transition-colors ${
+                      isSelected
+                        ? "border-[#C28B49] bg-[#C28B49]/20 text-[#F0E9D9]"
+                        : "hairline hover:border-[#6D9A83] text-[#A2B0B2]"
+                    }`}
+                  >
+                    {isSelected ? "✓ " : "+ "}{a.name} (sig {a.significance}/10)
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <button
+              className="btn btn-primary !text-xs"
+              disabled={curateSelected.length < 2 || !!s.activeExhibition}
+              onClick={handleLaunchExhibition}
+            >
+              {s.activeExhibition ? "Exhibition in progress" : `Stage Exhibition (${curateSelected.length} items)`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Panel
+        title="Artifact Archive"
+        sub="Every artifact is a structured record with hypotheses, evidence and uncertainty — not a single answer."
+      >
+        <div className="flex flex-wrap gap-2 mb-4 justify-between items-center">
+          <div className="flex flex-wrap gap-2">
+            <input className="input !w-56" placeholder="Search name, id, description…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <select className="input !w-40" value={cat} onChange={(e) => setCat(e.target.value)}>
+              <option value="all">All categories</option>
+              {Object.keys(CATEGORY_LABELS).map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS]}</option>)}
+            </select>
+            <select className="input !w-36" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="all">Any status</option>
+              <option value="unanalyzed">Unanalyzed</option>
+              <option value="classified">Classified</option>
+              <option value="verified">Verified</option>
+              <option value="published">Published</option>
+            </select>
+            <select className="input !w-40" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+              <option value="recent">Newest first</option>
+              <option value="sig">Significance ↓</option>
+              <option value="conf">Confidence ↓</option>
+            </select>
+          </div>
+          {!s.activeExhibition && s.artifacts.length >= 2 && !showCurate && (
+            <button className="btn btn-jade !text-xs" onClick={() => setShowCurate(true)}>
+              🏛 Curate Museum Exhibition
+            </button>
+          )}
         </div>
 
         {list.length ? (

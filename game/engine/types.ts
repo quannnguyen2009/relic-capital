@@ -465,6 +465,18 @@ export interface GameState {
 
   campaignChapter: number; // 0-based index of active chapter
   campaignCompleted: boolean;
+  activeExhibition?: MuseumExhibition | null;
+}
+
+export interface MuseumExhibition {
+  id: string;
+  title: string;
+  theme: string;
+  artifactUids: string[];
+  dayStarted: number;
+  durationDays: number;
+  dailyRevenue: number;
+  reputationGain: number;
 }
 
 export const SAVE_VERSION = 3;

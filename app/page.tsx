@@ -21,16 +21,19 @@ import StartScreen from "@/components/StartScreen";
 import CoverScreen from "@/components/CoverScreen";
 import { Tooltip } from "@/components/ui";
 
-const NAV: { id: Screen; label: string }[] = [
-  { id: "command", label: "Command Center" },
-  { id: "map", label: "Exploration Map" },
-  { id: "expedition", label: "Expedition" },
-  { id: "archive", label: "Artifact Archive" },
-  { id: "lab", label: "Research Lab" },
-  { id: "finance", label: "Finance & Grants" },
-  { id: "market", label: "Market Observatory" },
-  { id: "dev", label: "Institute Development" },
-  { id: "codex", label: "Codex & Journal" },
+import { t, type DictKey } from "@/game/i18n";
+import { toggleMute } from "@/game/sound";
+
+const NAV: { id: Screen; labelKey: DictKey }[] = [
+  { id: "command", labelKey: "nav_command" },
+  { id: "map", labelKey: "nav_map" },
+  { id: "expedition", labelKey: "nav_expedition" },
+  { id: "archive", labelKey: "nav_archive" },
+  { id: "lab", labelKey: "nav_lab" },
+  { id: "finance", labelKey: "nav_finance" },
+  { id: "market", labelKey: "nav_market" },
+  { id: "dev", labelKey: "nav_dev" },
+  { id: "codex", labelKey: "nav_codex" },
 ];
 
 /** Entry flow: cover (cinematic) → start/save → game. */
@@ -46,6 +49,33 @@ export default function Page() {
     setSaveExists(hasSave());
     setBooted(true);
   }, []);
+
+  // Keyboard navigation & spacebar day advance
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) {
+        return;
+      }
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (!game.inTutorial() || (game.s && game.s.tutorialStep === 4)) {
+          game.nextDay();
+        }
+      } else if (e.key === "m" || e.key === "M") {
+        toggleMute();
+      } else if (e.key >= "1" && e.key <= "9") {
+        const idx = parseInt(e.key, 10) - 1;
+        if (NAV[idx]) {
+          game.setScreen(NAV[idx].id);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [game]);
 
   if (!booted) return null;
 
@@ -75,32 +105,37 @@ export default function Page() {
     );
   }
 
+  const lang = game.lang ?? "en";
+
   return (
     <div className="min-h-screen flex flex-col">
       <StatusBar />
       <nav className="border-b hairline bg-[#0b1822] overflow-x-auto">
         <div className="flex">
-          {NAV.map((n) => {
+          {NAV.map((n, idx) => {
+            const label = t(n.labelKey, lang);
             // During the tutorial, only the guided screen is clickable.
             const guided = game.inTutorial() ? game.guidedScreen() : null;
             const locked = guided !== null && n.id !== guided;
             return locked ? (
-              <Tooltip key={n.id} text={`🔒 Step ${s.tutorialStep}/12: Follow Dr. Linh's step to unlock ${n.label}, or press "Skip tutorial".`}>
-                <span className="px-4 py-2 text-[0.8rem] whitespace-nowrap border-b-2 border-transparent text-[#3a5062] cursor-not-allowed select-none inline-block">
-                  {n.label}
+              <Tooltip key={n.id} text={`🔒 Step ${s.tutorialStep}/12: Follow Dr. Linh's step to unlock ${label}, or press "Skip tutorial".`}>
+                <span className="px-3.5 py-2 text-[0.8rem] whitespace-nowrap border-b-2 border-transparent text-[#3a5062] cursor-not-allowed select-none inline-block">
+                  {label}
+                  <span className="text-[0.62rem] opacity-30 ml-1">[{idx + 1}]</span>
                 </span>
               </Tooltip>
             ) : (
               <button
                 key={n.id}
                 onClick={() => game.setScreen(n.id)}
-                className={`px-4 py-2 text-[0.8rem] whitespace-nowrap border-b-2 transition-colors ${
+                className={`px-3.5 py-2 text-[0.8rem] whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                   game.screen === n.id
                     ? "border-[#C28B49] text-[#F0E9D9]"
                     : "border-transparent text-[#A2B0B2] hover:text-[#F0E9D9]"
                 }`}
               >
-                {n.label}
+                <span>{label}</span>
+                <span className="text-[0.62rem] opacity-40">[{idx + 1}]</span>
               </button>
             );
           })}

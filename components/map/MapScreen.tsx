@@ -37,15 +37,86 @@ export default function MapScreen() {
   return (
     <div className="space-y-4">
       <Panel title="Exploration Map" sub="Fictionalized map inspired by Vietnam's archaeology. Real contexts are labeled; expedition scenarios at fictional sites are invented for play. Click a marker to inspect a site.">
-        <div className="relative rounded border hairline overflow-hidden bg-[#0d1822] map-frame">
-          <div className="map-inner relative" style={{ paddingBottom: "86%" }}>
-            {/* stylized coastline */}
+        <div className="relative rounded border hairline overflow-hidden bg-[#0a151e] map-frame shadow-2xl">
+          <div className="map-inner relative" style={{ paddingBottom: "82%" }}>
+            {/* Geographic SVG of Vietnam with terrain contours & oceanic markings */}
             <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              <path d="M56,2 L58,10 L55,18 L57,26 L54,33 L56,40 L52,48 L46,54 L44,62 L47,70 L43,78 L37,86 L33,94 L30,100 L18,100 L14,60 L22,30 L30,10 L40,0 Z" fill="#14232e" stroke="#2a4256" strokeWidth="0.4" />
-              <path d="M56,2 L58,10 L55,18 L57,26 L54,33 L56,40 L52,48 L46,54" stroke="#3a5d6e" strokeWidth="0.7" fill="none" opacity="0.9" />
-              <text x="70" y="30" fill="#33566b" fontSize="3.4" textAnchor="middle">Biển Đông</text>
-              <text x="70" y="36" fill="#33566b" fontSize="2.4" textAnchor="middle">(South China Sea)</text>
-            </svg>      {sitePlots.map(({ site, x, y }) => {
+              <defs>
+                <linearGradient id="vietnamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#192b38" />
+                  <stop offset="50%" stopColor="#142430" />
+                  <stop offset="100%" stopColor="#0e1a24" />
+                </linearGradient>
+                <pattern id="grid" width="4" height="4" patternUnits="userSpaceOnUse">
+                  <path d="M 4 0 L 0 0 0 4" fill="none" stroke="#1d303f" strokeWidth="0.15" />
+                </pattern>
+              </defs>
+
+              <rect width="100" height="100" fill="url(#grid)" opacity="0.4" />
+
+              {/* Vietnam S-Curve Landmass */}
+              <path
+                d="M 38,4 
+                   C 46,2 58,4 62,8 
+                   C 66,12 60,18 54,22 
+                   C 57,25 61,30 55,36 
+                   C 51,41 47,48 44,56 
+                   C 42,62 48,68 46,74 
+                   C 44,80 39,86 35,92 
+                   C 31,97 25,96 22,90 
+                   C 20,84 25,80 28,76 
+                   C 32,71 36,65 37,58 
+                   C 38,50 33,42 30,34 
+                   C 26,26 22,18 28,10 
+                   Z"
+                fill="url(#vietnamGrad)"
+                stroke="#33566b"
+                strokeWidth="0.6"
+              />
+
+              {/* Red River Delta & Mekong Delta Estuary Accents */}
+              <path d="M 48,16 Q 54,20 53,24" stroke="#487894" strokeWidth="0.6" fill="none" opacity="0.7" />
+              <path d="M 28,84 Q 34,88 32,94" stroke="#487894" strokeWidth="0.6" fill="none" opacity="0.7" />
+
+              {/* Maritime labels */}
+              <text x="74" y="32" fill="#3a6078" fontSize="3.6" fontFamily="serif" textAnchor="middle" letterSpacing="0.1em">BIỂN ĐÔNG</text>
+              <text x="74" y="37" fill="#2d4c5f" fontSize="2.2" textAnchor="middle">(South China Sea)</text>
+
+              <text x="76" y="58" fill="#284455" fontSize="2.2" textAnchor="middle">Quần đảo Hoàng Sa</text>
+              <circle cx="76" cy="54" r="0.8" fill="#3a6078" />
+              <circle cx="78" cy="55" r="0.6" fill="#3a6078" />
+
+              <text x="72" y="86" fill="#284455" fontSize="2.2" textAnchor="middle">Quần đảo Trường Sa</text>
+              <circle cx="72" cy="82" r="0.8" fill="#3a6078" />
+              <circle cx="74" cy="83" r="0.6" fill="#3a6078" />
+
+              {/* Active Expedition Vector from Hanoi HQ to target site */}
+              {s.expedition && s.expedition.phase === "active" && (() => {
+                const target = sitePlots.find((p) => p.site.id === s.expedition?.plan.siteId);
+                if (!target) return null;
+                return (
+                  <g>
+                    <line
+                      x1="50"
+                      y1="16"
+                      x2={target.x}
+                      y2={target.y}
+                      stroke="#C28B49"
+                      strokeWidth="0.7"
+                      strokeDasharray="2,1.5"
+                    />
+                    <circle cx="50" cy="16" r="1.4" fill="#C28B49" />
+                    <text x="50" y="13.5" fill="#C28B49" fontSize="2.4" textAnchor="middle" fontWeight="bold">Hà Nội HQ</text>
+                  </g>
+                );
+              })()}
+            </svg>
+
+            {/* Season Badge Overlay */}
+            <div className="absolute top-2.5 right-3 bg-[#0b1822]/90 border hairline px-2.5 py-1 rounded text-xs text-[#A2B0B2] pointer-events-none z-10 flex items-center gap-2">
+              <span className="text-[#C28B49]">🌦</span>
+              <span>{(s.day % 60) < 30 ? "Mùa Khô (Northeast Monsoon)" : "Mùa Mưa (Southwest Monsoon)"}</span>
+            </div>      {sitePlots.map(({ site, x, y }) => {
         const unlocked = s.siteUnlocked.includes(site.id);
         const regionOk = s.regionUnlocked.includes(site.region);
         const status: "available" | "locked" | "region-locked" = !regionOk ? "region-locked" : unlocked ? "available" : "locked";

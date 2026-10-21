@@ -18,14 +18,39 @@ export default function MarketScreen() {
   const pos = s.market.positions.find((p) => p.instrumentId === sel) ?? null;
   const first = series[0]?.price ?? price;
   const change = first ? ((price - first) / first) * 100 : 0;
+  const sectorThemeTag: Record<string, { label: string; color: string }> = {
+    stablecore: { label: "🏛 Endowment Reserve", color: "#6D9A83" },
+    "digi-vn": { label: "💻 Digital Archive Index", color: "#3a8bb0" },
+    consotech: { label: "🧪 Conservation Tech", color: "#C28B49" },
+    silkroute: { label: "⛵ Maritime Trade Venture", color: "#d97706" },
+    fieldrobot: { label: "🛰 Autonomous Survey Robotics", color: "#ef4444" },
+  };
+
+  const portVal = portfolioValue(s);
+  const totalWealth = s.resources.cash + portVal;
+  const portfolioRatio = totalWealth > 0 ? Math.round((portVal / totalWealth) * 100) : 0;
 
   return (
     <div className="space-y-4">
-      <Panel title="Market Observatory" sub="Simulated research-sector instruments — all fictional, no relation to real antiquities prices. Prices are driven by your institute's publishable output and seeded events; volatility is modeled, not oracle truth.">
-        <div className="flex justify-between mb-3 text-sm">
-          <span className="num">Portfolio: <strong>{fmt(portfolioValue(s))} đ</strong></span>
-          <span className="text-xs text-[#A2B0B2]">Cash: {fmt(s.resources.cash)} đ · fees 2% per trade</span>
+      <Panel title="Market Observatory & Treasury" sub="Simulated research-sector instruments & institutional endowment funds. Diversify capital reserves to cushion fieldwork operational volatility.">
+        <div className="grid sm:grid-cols-3 gap-3 mb-4 text-xs num">
+          <div className="panel-elevated p-2.5 border hairline">
+            <div className="text-[0.65rem] text-[#A2B0B2] uppercase">Treasury Portfolio</div>
+            <div className="text-base text-[#F0E9D9] font-bold">{fmt(portVal)} đ</div>
+            <div className="text-[0.65rem] text-[#C28B49]">{portfolioRatio}% allocated to sector instruments</div>
+          </div>
+          <div className="panel-elevated p-2.5 border hairline">
+            <div className="text-[0.65rem] text-[#A2B0B2] uppercase">Liquid Cash Cushion</div>
+            <div className="text-base text-[#6D9A83] font-bold">{fmt(s.resources.cash)} đ</div>
+            <div className="text-[0.65rem] text-[#A2B0B2]">2% institutional execution fee</div>
+          </div>
+          <div className="panel-elevated p-2.5 border hairline">
+            <div className="text-[0.65rem] text-[#A2B0B2] uppercase">Active Positions</div>
+            <div className="text-base text-[#E0D7C5] font-bold">{s.market.positions.length} holdings</div>
+            <div className="text-[0.65rem] text-[#A2B0B2]">{s.market.watchlist.length} on active surveillance</div>
+          </div>
         </div>
+
         <div className="grid lg:grid-cols-[280px_1fr] gap-4">
           {/* instrument list */}
           <div className="space-y-2">
@@ -35,21 +60,25 @@ export default function MarketScreen() {
               const f = seriesI[0]?.price ?? p;
               const pct = f ? ((p - f) / f) * 100 : 0;
               const held = s.market.positions.find((x) => x.instrumentId === i.id);
+              const theme = sectorThemeTag[i.id] || { label: "Research Equity", color: "#C28B49" };
               return (
                 <button
                   key={i.id}
                   onClick={() => setSel(i.id)}
-                  className={`w-full text-left p-2.5 rounded border ${sel === i.id ? "border-[#C28B49]" : "hairline hover:border-[#6D9A83]"}`}
+                  className={`w-full text-left p-2.5 rounded border transition-colors ${sel === i.id ? "border-[#C28B49] bg-[#C28B49]/10" : "hairline hover:border-[#6D9A83]"}`}
                 >
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-display">{i.symbol}</span>
-                    <span className="num">{p.toFixed(2)}</span>
+                    <span className="num font-bold">{p.toFixed(2)} đ</span>
                   </div>
-                  <div className="flex justify-between text-[0.65rem] text-[#A2B0B2]">
-                    <span>{i.name}</span>
-                    <span className={pct >= 0 ? "text-[#6D9A83]" : "text-[#D66D67]"}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span>
+                  <div className="flex justify-between text-[0.65rem] text-[#A2B0B2] mt-0.5">
+                    <span className="truncate max-w-[160px]">{i.name}</span>
+                    <span className={pct >= 0 ? "text-[#6D9A83] font-bold" : "text-[#D66D67] font-bold"}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span>
                   </div>
-                  {held && <div className="text-[0.65rem] text-[#C28B49] num mt-0.5">holding {held.shares} @ {held.avgCost.toFixed(2)}</div>}
+                  <div className="flex justify-between items-center text-[0.6rem] mt-1.5 pt-1 border-t hairline">
+                    <span style={{ color: theme.color }}>{theme.label}</span>
+                    {held ? <span className="text-[#C28B49] font-mono">Held: {held.shares}</span> : <span className="text-[#A2B0B2]">No position</span>}
+                  </div>
                 </button>
               );
             })}

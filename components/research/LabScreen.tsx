@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useGame } from "@/game/store";
 import { Panel, ConfidenceBadge, Empty, Tooltip } from "../ui";
 import { RESEARCH_LABELS, RESEARCH_COSTS } from "@/game/engine/research";
-import type { ResearchOp } from "@/game/engine/types";
+import { REF_RECORDS } from "@/game/data/systems";
+import type { ResearchOp, PlayerArtifact } from "@/game/engine/types";
 
 const OPS: ResearchOp[] = ["classification", "period", "inscription", "refMatch", "contextual", "anomaly", "confidence"];
 
@@ -11,6 +12,7 @@ export default function LabScreen() {
   const g = useGame();
   const s = g.s!;
   const [selUid, setSelUid] = useState<string | null>(s.artifacts[s.artifacts.length - 1]?.uid ?? null);
+  const [compareRef, setCompareRef] = useState(false);
   const a = s.artifacts.find((x) => x.uid === selUid) ?? null;
   const recentReports = s.researchReports.slice(-3).reverse();
 
@@ -82,6 +84,9 @@ export default function LabScreen() {
                       Digitize (4,000 đ)
                     </button>
                   </Tooltip>
+                  <button className="btn btn-primary !text-xs" onClick={() => setCompareRef(true)}>
+                    🔬 Side-by-Side Typology Match
+                  </button>
                 </div>
 
                 {/* hypotheses + evidence */}
@@ -109,6 +114,11 @@ export default function LabScreen() {
         </div>
       </Panel>
 
+      {/* Side-by-side Reference Comparison Modal */}
+      {compareRef && a && (
+        <ReferenceComparator a={a} onClose={() => setCompareRef(false)} />
+      )}
+
       {recentReports.length > 0 && (
         <Panel title="Recent analysis reports" sub="Every report labels its engine: 'rule-based' = local heuristic simulation, not an external AI service.">
           <div className="space-y-3">
@@ -129,6 +139,116 @@ export default function LabScreen() {
           </div>
         </Panel>
       )}
+    </div>
+  );
+}
+
+function ReferenceComparator({ a, onClose }: { a: PlayerArtifact; onClose: () => void }) {
+  const [selectedRefId, setSelectedRefId] = useState<string>(() => {
+    const matched = REF_RECORDS.find((r) => r.category === a.category);
+    return matched ? matched.id : REF_RECORDS[0].id;
+  });
+
+  const ref = REF_RECORDS.find((r) => r.id === selectedRefId) || REF_RECORDS[0];
+  const materialMatch = ref.material.toLowerCase().includes(a.material.toLowerCase()) || a.material.toLowerCase().includes(ref.material.toLowerCase());
+  const categoryMatch = ref.category.toLowerCase() === a.category.toLowerCase();
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-3 sm:p-6" onClick={onClose}>
+      <div className="panel-elevated w-full max-w-4xl max-h-[90vh] overflow-y-auto p-5 space-y-4 rise-in" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center border-b hairline pb-3">
+          <div>
+            <h3 className="font-display text-xl text-[#F0E9D9]">Side-by-Side Typological Concordance</h3>
+            <p className="text-xs text-[#A2B0B2]">Compare excavated archaeological material with documented museum reference typologies.</p>
+          </div>
+          <button className="btn btn-ghost !py-1" onClick={onClose}>Close ✕</button>
+        </div>
+
+        {/* Reference Selector */}
+        <div>
+          <label className="text-[0.65rem] uppercase text-[#A2B0B2] block mb-1">Select Reference Type Record</label>
+          <select className="input !w-full" value={selectedRefId} onChange={(e) => setSelectedRefId(e.target.value)}>
+            {REF_RECORDS.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} [{r.category.toUpperCase()}] — {r.era} ({r.region})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 2-Column Comparison Layout */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Left: Excavated Find */}
+          <div className="border hairline rounded p-4 bg-[#121f29] space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="tag border-[#C28B49] text-[#C28B49]">Excavated Find</span>
+              <ConfidenceBadge c={a.confidenceLabel} />
+            </div>
+            <div className="h-40 bg-cover bg-center rounded border hairline" style={{ backgroundImage: `url(${a.image})` }} />
+            <div>
+              <h4 className="font-display text-lg text-[#F0E9D9]">{a.name}</h4>
+              <p className="text-xs text-[#A2B0B2]">{a.uid} · Context: {a.context}</p>
+            </div>
+            <div className="text-xs space-y-1 num border-t hairline pt-2">
+              <div className="flex justify-between"><span className="text-[#A2B0B2]">Material:</span><span>{a.material}</span></div>
+              <div className="flex justify-between"><span className="text-[#A2B0B2]">Category:</span><span>{a.category}</span></div>
+              <div className="flex justify-between"><span className="text-[#A2B0B2]">Period (est):</span><span>{a.period}</span></div>
+              <div className="flex justify-between"><span className="text-[#A2B0B2]">Significance:</span><span>{a.significance}/10</span></div>
+            </div>
+            <div className="border-t hairline pt-2">
+              <div className="text-[0.65rem] uppercase text-[#A2B0B2] mb-1">Diagnostic Evidence Recorded ({a.evidences.length})</div>
+              <ul className="text-xs space-y-1">
+                {a.evidences.map((e) => (
+                  <li key={e.id} className="text-[#6D9A83] text-[0.7rem]">• {e.label}: {e.detail}</li>
+                ))}
+                {!a.evidences.length && <li className="text-[#A2B0B2] text-[0.7rem]">No lab evidence verified yet.</li>}
+              </ul>
+            </div>
+          </div>
+
+          {/* Right: Reference Typology Record */}
+          <div className="border hairline rounded p-4 bg-[#15232e] space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="tag border-[#6D9A83] text-[#6D9A83]">Museum Reference Standard</span>
+              <span className="tag">{ref.era}</span>
+            </div>
+            <div className="h-40 bg-gradient-to-br from-[#1a2d3a] to-[#0c161d] rounded border hairline p-4 flex flex-col justify-center items-center text-center">
+              <div className="text-3xl mb-1">🏛</div>
+              <div className="font-display text-sm text-[#F0E9D9]">{ref.name}</div>
+              <div className="text-[0.65rem] text-[#A2B0B2] mt-1 italic">{ref.ref}</div>
+            </div>
+            <div>
+              <h4 className="font-display text-lg text-[#F0E9D9]">{ref.name}</h4>
+              <p className="text-xs text-[#A2B0B2]">Region: {ref.region} · Era: {ref.era}</p>
+            </div>
+            <div className="text-xs space-y-1 num border-t hairline pt-2">
+              <div className="flex justify-between"><span className="text-[#A2B0B2]">Material:</span><span>{ref.material}</span></div>
+              <div className="flex justify-between"><span className="text-[#A2B0B2]">Category:</span><span>{ref.category}</span></div>
+              <div className="flex justify-between"><span className="text-[#A2B0B2]">Reference ID:</span><span>{ref.id}</span></div>
+            </div>
+            <div className="border-t hairline pt-2">
+              <div className="text-[0.65rem] uppercase text-[#A2B0B2] mb-1">Typological Note</div>
+              <p className="text-xs text-[#E0D7C5] leading-relaxed">{ref.note}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Concordance Assessment */}
+        <div className="panel-elevated p-3 border hairline bg-[#0d161d] flex flex-wrap justify-between items-center gap-2 text-xs">
+          <div className="flex items-center gap-3">
+            <span className="font-display text-[#C28B49]">Concordance Factors:</span>
+            <span className={categoryMatch ? "text-[#6D9A83]" : "text-[#D66D67]"}>
+              {categoryMatch ? "✓ Category Match" : "✕ Category Divergence"}
+            </span>
+            <span className={materialMatch ? "text-[#6D9A83]" : "text-[#D66D67]"}>
+              {materialMatch ? "✓ Material Composition Compatible" : "○ Material Differs"}
+            </span>
+          </div>
+          <div className="text-[#A2B0B2] text-[0.7rem]">
+            Peer-reviewed source: <span className="text-[#F0E9D9]">{ref.ref}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -61,6 +61,19 @@ export function advanceDay(s: GameState): { insolvency: boolean } {
   s.resources.cash -= op;
   s.ledger.push(ledgerEntry("op", s.day, -op, "Daily operations (staff, utilities, equipment maintenance)", "operations"));
 
+  // Active museum exhibition ticket revenue
+  if (s.activeExhibition) {
+    const rev = s.activeExhibition.dailyRevenue;
+    s.resources.cash += rev;
+    s.ledger.push(ledgerEntry("exhibition", s.day, rev, `Exhibition ticket sales: ${s.activeExhibition.title}`, "other"));
+    const elapsed = s.day - s.activeExhibition.dayStarted;
+    if (elapsed >= s.activeExhibition.durationDays) {
+      s.resources.reputation += s.activeExhibition.reputationGain;
+      s.journal.push({ day: s.day, kind: "progress", entry: `Exhibition "${s.activeExhibition.title}" concluded with acclaim (+${s.activeExhibition.reputationGain} reputation).` });
+      s.activeExhibition = null;
+    }
+  }
+
   s.resources.energy = Math.min(100, s.resources.energy + 8 + (s.morale > 70 ? 3 : 0) - (s.morale < 40 ? 4 : 0));
 
   if (s.expedition && s.expedition.phase === "active") {

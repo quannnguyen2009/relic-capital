@@ -14,6 +14,12 @@ import { saveGame, loadGame, clearSave, hasSave } from "../game/persistence/save
 import { ACHIEVEMENTS, EQUIPMENT_DEFS, STAFF_DEFS, TECHS, TOTAL_TUTORIAL_STEPS } from "../game/data/systems";
 import { SITES, REGIONS } from "../game/data/world";
 
+import { Lang } from "./i18n";
+import {
+  playCoinSound, playDigSound, playDiscoverySound, playPublishSound,
+  playVerifySound, playClickSound
+} from "./sound";
+
 export type Screen =
   | "command" | "map" | "expedition" | "archive" | "lab" | "finance" | "market" | "dev" | "codex";
 
@@ -43,6 +49,8 @@ interface Store {
   modal: Modal;
   lastSaveAt: number;
   simHint: string;
+  lang: Lang;
+  setLang: (l: Lang) => void;
 
   // navigation
   setScreen: (sc: Screen) => void;
@@ -85,6 +93,9 @@ interface Store {
   mktSell: (id: string, shares: number) => { ok: boolean; reason?: string };
   toggleWatch: (id: string) => void;
 
+  // museum
+  curateExhibition: (title: string, theme: string, uids: string[]) => { ok: boolean; reason?: string };
+
   // tutorial
   setTutorialStep: (n: number) => void;
   completeTutorial: () => void;
@@ -98,6 +109,11 @@ export const useGame = create<Store>((set, get) => ({
   modal: null,
   lastSaveAt: 0,
   simHint: "",
+  lang: typeof window !== "undefined" && localStorage.getItem("relic_capital_lang") === "vi" ? "vi" : "en",
+  setLang: (l) => {
+    if (typeof window !== "undefined") localStorage.setItem("relic_capital_lang", l);
+    set({ lang: l });
+  },
 
   setScreen: (sc) => {
     // Hard gate: while the tutorial is active, navigation is restricted to the
@@ -108,6 +124,7 @@ export const useGame = create<Store>((set, get) => ({
       const target = st.guidedScreen();
       if (target && sc !== target) return;
     }
+    playClickSound();
     set({ screen: sc });
   },
   setModal: (m) => set({ modal: m }),
@@ -156,10 +173,15 @@ export const useGame = create<Store>((set, get) => ({
     resolveGrants(s);
     // expedition daily
     let report = false;
+    let discoveredAny = false;
     if (s.expedition?.phase === "active") {
       const r = advanceExpeditionDay(s);
+      if (r.discovered && r.discovered.length > 0) discoveredAny = true;
       if (r.done) report = true;
     }
+    if (discoveredAny) playDiscoverySound();
+    else if (s.expedition?.phase === "active") playDigSound();
+
     // random site event
     maybeSpawnEvent(s);
     // achievements
@@ -185,7 +207,10 @@ export const useGame = create<Store>((set, get) => ({
     if (!s) return { ok: false, reason: "No game." };
     if (!s.plannedExpedition) return { ok: false, reason: "Choose a site and plan first." };
     const res = startExpedition(s, s.plannedExpedition);
-    if (res.ok) saveGame(s);
+    if (res.ok) {
+      playDigSound();
+      saveGame(s);
+    }
     set({ s: { ...s } });
     return res;
   },
@@ -224,6 +249,7 @@ export const useGame = create<Store>((set, get) => ({
     if (!s) return { ok: false };
     const r = verifyArtifact(s, uid);
     if (r.ok) {
+      playVerifySound();
       const ach = evaluateAchievements(s);
       evaluateCampaign(s);
       saveGame(s);
@@ -236,7 +262,11 @@ export const useGame = create<Store>((set, get) => ({
     const { s } = get();
     if (!s) return { ok: false };
     const r = publishArtifact(s, uid);
-    if (r.ok) { saveGame(s); set({ s: { ...s } }); }
+    if (r.ok) {
+      playPublishSound();
+      saveGame(s);
+      set({ s: { ...s } });
+    }
     return r;
   },
 
@@ -244,7 +274,11 @@ export const useGame = create<Store>((set, get) => ({
     const { s } = get();
     if (!s) return { ok: false };
     const r = digitizeArtifact(s, uid);
-    if (r.ok) { saveGame(s); set({ s: { ...s } }); }
+    if (r.ok) {
+      playClickSound();
+      saveGame(s);
+      set({ s: { ...s } });
+    }
     return r;
   },
 
@@ -252,7 +286,11 @@ export const useGame = create<Store>((set, get) => ({
     const { s } = get();
     if (!s) return { ok: false };
     const r = applyGrant(s, id);
-    if (r.ok) { saveGame(s); set({ s: { ...s } }); }
+    if (r.ok) {
+      playCoinSound();
+      saveGame(s);
+      set({ s: { ...s } });
+    }
     return r;
   },
 
@@ -361,7 +399,11 @@ export const useGame = create<Store>((set, get) => ({
     const { s } = get();
     if (!s) return { ok: false };
     const r = buy(s, id, shares);
-    if (r.ok) { saveGame(s); set({ s: { ...s } }); }
+    if (r.ok) {
+      playCoinSound();
+      saveGame(s);
+      set({ s: { ...s } });
+    }
     return r;
   },
 
@@ -369,7 +411,11 @@ export const useGame = create<Store>((set, get) => ({
     const { s } = get();
     if (!s) return { ok: false };
     const r = sell(s, id, shares);
-    if (r.ok) { saveGame(s); set({ s: { ...s } }); }
+    if (r.ok) {
+      playCoinSound();
+      saveGame(s);
+      set({ s: { ...s } });
+    }
     return r;
   },
 
@@ -378,8 +424,49 @@ export const useGame = create<Store>((set, get) => ({
     if (!s) return;
     if (s.market.watchlist.includes(id)) s.market.watchlist = s.market.watchlist.filter((x) => x !== id);
     else s.market.watchlist.push(id);
+    playClickSound();
     saveGame(s);
     set({ s: { ...s } });
+  },
+
+  curateExhibition: (title, theme, uids) => {
+    const { s } = get();
+    if (!s) return { ok: false, reason: "No active game." };
+    if (uids.length < 2) return { ok: false, reason: "An exhibition requires at least 2 cataloged artifacts." };
+    if (s.resources.cash < 5000) return { ok: false, reason: "Staging an exhibition requires 5,000 đ for curation and display stands." };
+    spend(s, "other", `Curate exhibition: ${title}`, { cash: -5000 });
+
+    const curatedArts = s.artifacts.filter((a) => uids.includes(a.uid));
+    const avgSig = curatedArts.reduce((acc, a) => acc + a.significance, 0) / curatedArts.length;
+    const publishedBonus = curatedArts.filter((a) => a.status === "published").length * 500;
+    const dailyRevenue = Math.round(1800 + avgSig * 350 + publishedBonus);
+    const repGain = Math.round(3 + curatedArts.length * 1.5 + avgSig);
+
+    s.activeExhibition = {
+      id: `exh-${s.day}-${Date.now()}`,
+      title,
+      theme,
+      artifactUids: uids,
+      dayStarted: s.day,
+      durationDays: 14,
+      dailyRevenue,
+      reputationGain: repGain,
+    };
+
+    curatedArts.forEach((a) => {
+      a.accessibility = Math.min(1, a.accessibility + 0.25);
+    });
+
+    s.journal.push({
+      day: s.day,
+      kind: "progress",
+      entry: `Staged museum exhibition: "${title}" featuring ${curatedArts.length} artifacts (ticket revenue est. +${dailyRevenue}đ/day).`,
+    });
+
+    playPublishSound();
+    saveGame(s);
+    set({ s: { ...s } });
+    return { ok: true };
   },
 
   setTutorialStep: (n) => {

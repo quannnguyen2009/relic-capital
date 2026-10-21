@@ -5,6 +5,7 @@ import { Panel, Bar, Tooltip } from "../ui";
 import { fmt, estimateExpedition } from "@/game/engine/core";
 import { SITES } from "@/game/data/world";
 import { EQUIPMENT_DEFS } from "@/game/data/systems";
+import { playDigSound } from "@/game/sound";
 import type { ExpeditionPlan } from "@/game/engine/types";
 
 function defaultPlan(siteId: string): ExpeditionPlan {
@@ -188,10 +189,32 @@ function ActiveExpedition() {
   const s = g.s!;
   const e = s.expedition!;
   const site = SITES.find((x) => x.id === e.plan.siteId)!;
+  const progressRatio = Math.min(1, e.elapsedDays / Math.max(1, e.totalDays));
+  const currentDepth = (0.3 + progressRatio * 2.8).toFixed(2);
+
+  // 3x3 Sieve grid state
+  const [brushedCells, setBrushedCells] = useState<Record<number, string>>({});
+  const gridFinds = [
+    "Fine charcoal fleck (C14 candidate)",
+    "Red-slipped terracotta rim sherd",
+    "Oxidized bronze patination fleck",
+    "River gravel alluvial deposit",
+    "Animal bone fragment (sus scrofa)",
+    "Glazed stoneware body sherd",
+    "Burned clay daub with reed impressions",
+    "Polished stone adze debitage",
+    "Compact sterile silt horizon"
+  ];
+
+  const handleBrush = (idx: number) => {
+    if (brushedCells[idx]) return;
+    playDigSound();
+    setBrushedCells((prev) => ({ ...prev, [idx]: gridFinds[idx % gridFinds.length] }));
+  };
 
   return (
     <div className="space-y-4">
-      <Panel title={site.name} sub={`Day ${e.startedDay + e.elapsedDays} · ${e.elapsedDays}/${e.totalDays} dig days elapsed`}>
+      <Panel title={site.name} sub={`Day ${e.startedDay + e.elapsedDays} · ${e.elapsedDays}/${e.totalDays} dig days elapsed · Stratum depth: ${currentDepth}m`}>
         <Bar value={e.elapsedDays} max={e.totalDays} color="#C28B49" />
         {e.pendingDecision ? (
           <div className="panel-elevated p-4 mt-4 gild-flash">
@@ -207,9 +230,83 @@ function ActiveExpedition() {
             </div>
           </div>
         ) : (
-          <button className="btn btn-primary mt-4" onClick={() => g.nextDay()}>Dig on — advance one day</button>
+          <button className="btn btn-primary mt-4" onClick={() => { setBrushedCells({}); g.nextDay(); }}>Dig on — advance one day</button>
         )}
       </Panel>
+
+      {/* Visual Stratigraphic Trench & Interactive Sieve Grid */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        {/* Stratigraphic Profile */}
+        <div className="panel-elevated p-4">
+          <div className="flex justify-between items-baseline mb-2">
+            <h4 className="font-display text-sm">Stratigraphic Trench Section</h4>
+            <span className="text-xs text-[#C28B49] num">Excavated: {currentDepth}m / 3.10m</span>
+          </div>
+          <p className="text-[0.65rem] text-[#A2B0B2] mb-3">Single-context soil profiling: older cultural horizons lie deeper under alluvial layers.</p>
+          <div className="relative border hairline rounded overflow-hidden h-44 flex flex-col font-mono text-[0.65rem]">
+            {/* Layer I */}
+            <div className="h-1/4 bg-[#3a3526]/80 border-b border-[#5a523a] p-1.5 flex justify-between items-center text-[#d1caa1]">
+              <span>Stratum I · Topsoil & Humus (0.0 – 0.5m)</span>
+              <span className="text-[0.6rem] text-[#A2B0B2]">Recent alluvium</span>
+            </div>
+            {/* Layer II */}
+            <div className="h-1/4 bg-[#4a3a25]/80 border-b border-[#6e5839] p-1.5 flex justify-between items-center text-[#e2b77c]">
+              <span>Stratum II · Medieval Ceramic Horizon (0.5 – 1.6m)</span>
+              <span className="text-[0.6rem] text-[#A2B0B2]">Lý–Trần glazed sherds</span>
+            </div>
+            {/* Layer III */}
+            <div className="h-1/4 bg-[#32261a]/90 border-b border-[#553c25] p-1.5 flex justify-between items-center text-[#e99a4c]">
+              <span>Stratum III · Protohistoric Horizon (1.6 – 2.8m)</span>
+              <span className="text-[0.6rem] text-[#A2B0B2]">Bronze casting & burials</span>
+            </div>
+            {/* Layer IV */}
+            <div className="h-1/4 bg-[#1f1710] p-1.5 flex justify-between items-center text-[#7e7060]">
+              <span>Stratum IV · Sterile Basal Gravel (&gt; 2.8m)</span>
+              <span className="text-[0.6rem] text-[#A2B0B2]">Geological bedrock</span>
+            </div>
+
+            {/* Depth cutter line */}
+            <div
+              className="absolute left-0 right-0 border-b-2 border-dashed border-[#F0E9D9] flex items-center justify-end pr-2 transition-all duration-500 shadow-md pointer-events-none"
+              style={{ top: `${Math.min(95, Math.max(8, progressRatio * 100))}%` }}
+            >
+              <span className="bg-[#C28B49] text-black text-[0.6rem] font-bold px-1.5 py-0.5 rounded shadow">
+                Trowel Level: {currentDepth}m
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Interactive Trench Sieve Grid */}
+        <div className="panel-elevated p-4">
+          <div className="flex justify-between items-baseline mb-2">
+            <h4 className="font-display text-sm">Interactive Sieve &amp; Brush Grid</h4>
+            <span className="text-xs text-[#6D9A83] num">{Object.keys(brushedCells).length}/9 quadrants examined</span>
+          </div>
+          <p className="text-[0.65rem] text-[#A2B0B2] mb-3">Click quadrants to brush sediment layers with your trowel and inspect micro-inclusions.</p>
+          <div className="grid grid-cols-3 gap-2 h-44">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((idx) => {
+              const brushed = brushedCells[idx];
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleBrush(idx)}
+                  className={`rounded border text-center p-1.5 flex flex-col justify-center items-center transition-all ${
+                    brushed
+                      ? "border-[#6D9A83]/60 bg-[#6D9A83]/10 text-[#F0E9D9]"
+                      : "hairline bg-[#162530] hover:border-[#C28B49] text-[#A2B0B2]"
+                  }`}
+                >
+                  <span className="text-[0.65rem] font-mono text-[#C28B49]">{`Q${idx + 1}`}</span>
+                  <span className="text-[0.6rem] line-clamp-2 leading-tight mt-0.5">
+                    {brushed || "Sediment matrix (unbrushed)"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
         <Panel title="Event log">
