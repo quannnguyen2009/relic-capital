@@ -11,11 +11,26 @@ import { initMarket, buy, sell, priceOf } from "../game/engine/market";
 import { applyGrant, resolveGrants, grantScore } from "../game/engine/grants";
 import { maybeSpawnEvent, resolveEvent } from "../game/engine/events";
 import { saveGame, loadGame, clearSave, hasSave } from "../game/persistence/save";
-import { ACHIEVEMENTS, EQUIPMENT_DEFS, STAFF_DEFS, TECHS } from "../game/data/systems";
+import { ACHIEVEMENTS, EQUIPMENT_DEFS, STAFF_DEFS, TECHS, TOTAL_TUTORIAL_STEPS } from "../game/data/systems";
 import { SITES, REGIONS } from "../game/data/world";
 
 export type Screen =
   | "command" | "map" | "expedition" | "archive" | "lab" | "finance" | "market" | "dev" | "codex";
+
+export const STEP_NAV: Record<number, Screen> = {
+  1: "command",
+  2: "map",
+  3: "expedition",
+  4: "expedition",
+  5: "lab",
+  6: "lab",
+  7: "archive",
+  8: "finance",
+  9: "market",
+  10: "dev",
+  11: "codex",
+  12: "command",
+};
 
 export type Modal =
   | { kind: "tutorial" } | { kind: "event"; eventId: string }
@@ -99,17 +114,13 @@ export const useGame = create<Store>((set, get) => ({
 
   inTutorial: () => {
     const s = get().s;
-    return !!s && s.tutorialActive && s.tutorialStep <= 8;
+    return !!s && s.tutorialActive && s.tutorialStep <= TOTAL_TUTORIAL_STEPS;
   },
 
   guidedScreen: () => {
     const s = get().s;
-    if (!s || !s.tutorialActive || s.tutorialStep > 8) return null;
-    if (s.tutorialStep === 2) return "map";
-    if (s.tutorialStep === 3 || s.tutorialStep === 4) return "expedition";
-    if (s.tutorialStep === 5 || s.tutorialStep === 6) return "lab";
-    if (s.tutorialStep === 7) return "archive"; // publish lives in Archive (also ok: finance via CTA below)
-    return null; // steps 1, 8: intro/summary — no navigation needed
+    if (!s || !s.tutorialActive || s.tutorialStep > TOTAL_TUTORIAL_STEPS) return null;
+    return STEP_NAV[s.tutorialStep] ?? "command";
   },
 
   startNew: (d) => {
@@ -123,7 +134,10 @@ export const useGame = create<Store>((set, get) => ({
     const res = loadGame();
     if (res.ok && res.state) {
       initMarket(res.state);
-      set({ s: res.state, screen: "command", lastSaveAt: Date.now() });
+      const scr = (res.state.tutorialActive && res.state.tutorialStep <= TOTAL_TUTORIAL_STEPS)
+        ? (STEP_NAV[res.state.tutorialStep] ?? "command")
+        : "command";
+      set({ s: res.state, screen: scr, lastSaveAt: Date.now() });
       return true;
     }
     return false;
@@ -389,12 +403,10 @@ export const useGame = create<Store>((set, get) => ({
   skipTutorial: () => {
     const { s } = get();
     if (!s) return;
-    // Skipping is allowed only for players who deliberately opt out at the very
-    // start — after step 2 begins there is no skip: the tutorial IS the onboarding.
-    if (s.tutorialReplay && s.tutorialStep >= 2) return;
     s.tutorialStep = 99;
     s.tutorialActive = false;
     s.tutorialSkipped = true;
+    s.journal.push({ day: s.day, kind: "tutorial", entry: "Tutorial skipped by director. All institute facilities are unlocked for free operation." });
     saveGame(s);
     set({ s: { ...s }, modal: null, screen: "command" });
   },

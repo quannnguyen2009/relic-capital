@@ -147,8 +147,21 @@ function Detail({ a, onClose }: { a: PlayerArtifact; onClose: () => void }) {
             </ul>
           </div>
 
-          <div className="flex justify-end gap-2">
-            <button className="btn btn-ghost" onClick={() => { g.setScreen("lab"); onClose(); }}>Open in Research Lab →</button>
+          <div className="flex justify-end gap-2 flex-wrap items-center">
+            {a.status !== "published" && (
+              <button
+                className="btn btn-jade !text-xs"
+                disabled={a.confidence < 0.55 || (g.s?.resources.research ?? 0) < 10}
+                onClick={() => {
+                  const r = g.publish(a.uid);
+                  if (r.ok) onClose();
+                }}
+                title={a.confidence < 0.55 ? "Requires ≥55% attribution confidence to publish." : "Publish peer-reviewed monograph for cash and reputation."}
+              >
+                Publish finding (10 RP)
+              </button>
+            )}
+            <button className="btn btn-ghost !text-xs" onClick={() => { g.setScreen("lab"); onClose(); }}>Open in Research Lab →</button>
           </div>
         </div>
       </div>

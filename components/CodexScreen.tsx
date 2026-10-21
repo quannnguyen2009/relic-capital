@@ -67,7 +67,7 @@ export default function CodexScreen() {
 
           <Panel title="Tutorial">
             <p className="text-sm text-[#A2B0B2]">Replay the guided first expedition with Dr. Linh at any time.</p>
-            <button className="btn btn-primary mt-2" onClick={() => { g.setTutorialStep(1); g.setModal({ kind: "tutorial" }); }}>
+            <button className="btn btn-primary mt-2" onClick={() => g.replayTutorial()}>
               Replay tutorial
             </button>
           </Panel>

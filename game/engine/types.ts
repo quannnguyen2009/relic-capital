@@ -456,7 +456,7 @@ export interface GameState {
   completedObjectives: string[];
 
   flags: Record<string, boolean | number>;
-  tutorialStep: number; // 0 = not started; 1..8 = in progress; 99 = done
+  tutorialStep: number; // 0 = not started; 1..12 = in progress; 99 = done
   tutorialSkipped: boolean;
   /** True from game start until the guided tutorial is completed (hard gate). */
   tutorialActive: boolean;

@@ -12,7 +12,7 @@ export function newGame(difficulty: Difficulty = "standard", seed?: number): Gam
 
     resources: {
       cash: d.startingCash,
-      research: 40,
+      research: 60,
       supplies: 30,
       energy: 100,
       knowledge: 5,

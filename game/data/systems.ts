@@ -277,6 +277,8 @@ export function siteRegionOf(siteId: string): string {
 
 
 // ── Tutorial steps ───────────────────────────────────────────────────────────
+export const TOTAL_TUTORIAL_STEPS = 12;
+
 export interface TutorialStepDef {
   step: number;
   title: string;
@@ -286,12 +288,89 @@ export interface TutorialStepDef {
   cta?: { label: string; screen: string };
 }
 export const TUTORIAL: TutorialStepDef[] = [
-  { step: 1, title: "The Institute", speaker: "Dr. Linh", body: "Welcome. You direct a small archaeology institute with one site and limited funding. Follow my 8 steps — each one unlocks the next. Press Continue to begin." },
-  { step: 2, title: "Choose a Site", speaker: "Dr. Linh", body: "Press Continue — I'll take you to the Exploration Map. There, press “Plan expedition” on the first site card. That's all for this step." },
-  { step: 3, title: "Plan the Dig", speaker: "Dr. Linh", body: "The default plan (4 workers, 4 days, survey + careful) is a good first dig. Look at the Estimate panel on the right: it shows cost, supplies and energy. When “Launch expedition” is green, press it." },
-  { step: 4, title: "Dig Day by Day", speaker: "Dr. Linh", body: "Press “Dig on — advance one day” until the excavation completes. A field decision may pop up mid-dig — pick any option; all three are safe for the tutorial. Finds appear automatically." },
-  { step: 5, title: "First Analysis", speaker: "Dr. Linh", body: "Press Continue — I'll take you to the Research Lab. Select your discovery, then press “Artifact classification”. Every find starts as a hypothesis; analysis builds evidence." },
-  { step: 6, title: "Build Evidence", speaker: "Dr. Linh", body: "Run one more analysis (any op — “Reference matching” is good), then press “Verify evidence”. Verification can raise confidence — or honestly report it's not there yet. Either outcome is progress." },
-  { step: 7, title: "EARN INCOME", speaker: "Dr. Linh", body: "Press Continue for the Artifact Archive. Open your find and press “Publish” (needs 55%+ confidence). Publication pays đ and reputation — that's how the institute survives. If confidence is short, run one more analysis first." },
-  { step: 8, title: "You're Director Now", speaker: "Dr. Linh", body: "That's the whole loop: DIG → ANALYZE → VERIFY → PUBLISH, and keep cash positive. Use “Advance day” in the top bar to pass time. Grants, markets and new regions unlock as reputation grows. Good luck — the trenches await." },
+  {
+    step: 1,
+    title: "The Institute",
+    speaker: "Dr. Linh",
+    body: "Welcome, Director. You are in command of an independent institute dedicated to Vietnamese archaeology. Balance field excavations with institutional survival. Follow this guided tour across all facilities before taking full control — or select Skip at any time.",
+    cta: { label: "To Exploration Map", screen: "map" },
+  },
+  {
+    step: 2,
+    title: "Exploration Map",
+    speaker: "Dr. Linh",
+    body: "Here are archaeological sites across Northern, Central, and Southern Vietnam. Each site carries historical strata, risk ratings, and data quality. Select the first site card and press “Plan expedition”.",
+    cta: { label: "Plan Expedition", screen: "expedition" },
+  },
+  {
+    step: 3,
+    title: "Expedition Logistics",
+    speaker: "Dr. Linh",
+    body: "Field archaeology is resource-intensive. Review the Estimate panel: labor, supplies, energy, and survey protocols. The default plan (4 workers, 4 days, survey + careful) is a reliable first season. Press “Launch expedition”.",
+    cta: { label: "Launch Expedition", screen: "expedition" },
+  },
+  {
+    step: 4,
+    title: "Field Excavation",
+    speaker: "Dr. Linh",
+    body: "Press “Dig on — advance one day” to progress through soil strata. If field decisions appear mid-dig, choose any protocol. Watch for discoveries as your team carefully sifts the trenches.",
+    cta: { label: "Advance Day", screen: "expedition" },
+  },
+  {
+    step: 5,
+    title: "Research Lab: Analysis",
+    speaker: "Dr. Linh",
+    body: "Discoveries arrive here in raw condition. Select your artifact, then run “Artifact classification”. Every find starts as a hypothesis; scientific testing builds empirical evidence.",
+    cta: { label: "Run Analysis", screen: "lab" },
+  },
+  {
+    step: 6,
+    title: "Verification & Publishing",
+    speaker: "Dr. Linh",
+    body: "Run a second test (“Reference matching”), then press “Verify evidence”. Verification challenges your hypotheses against rigorous standards. If attribution confidence reaches 55%+, you can publish for cash and prestige!",
+    cta: { label: "Verify & Publish", screen: "lab" },
+  },
+  {
+    step: 7,
+    title: "Artifact Archive",
+    speaker: "Dr. Linh",
+    body: "Welcome to the Archive — your permanent institutional repository. Here, every find's provenance, condition, historical period, and public accessibility score are cataloged and preserved for posterity.",
+    cta: { label: "Explore Archive", screen: "archive" },
+  },
+  {
+    step: 8,
+    title: "Finance & Grants",
+    speaker: "Dr. Linh",
+    body: "Archaeology cannot operate without sustainable funding. Check your cash balance, 7-day burn rate, and Runway. Here you apply for competitive research grants from public and international foundations.",
+    cta: { label: "Review Finances", screen: "finance" },
+  },
+  {
+    step: 9,
+    title: "Market Observatory",
+    speaker: "Dr. Linh",
+    body: "Field equipment, conservation chemicals, and regional indices fluctuate. Use the Market Observatory to track simulated price trends, build a watchlist, and trade supplies to hedge against inflation.",
+    cta: { label: "Inspect Market", screen: "market" },
+  },
+  {
+    step: 10,
+    title: "Institute Development",
+    speaker: "Dr. Linh",
+    body: "Invest in your future: recruit specialist staff (epigraphers, conservators, historians), upgrade field excavation kits, and install advanced spectrometry instrumentation to boost safety and data quality.",
+    cta: { label: "View Upgrades", screen: "dev" },
+  },
+  {
+    step: 11,
+    title: "Codex & Archival Lore",
+    speaker: "Dr. Linh",
+    body: "The Codex preserves field manuals and historical contexts: Đông Sơn bronze drums, Sa Huỳnh burial jars, Óc Eo trade routes, and Champa epigraphy. You can also replay this tutorial here at any time.",
+    cta: { label: "Read Codex", screen: "codex" },
+  },
+  {
+    step: 12,
+    title: "Director's Commission",
+    speaker: "Dr. Linh",
+    body: "You have inspected every department of the institute. The core cycle is in your hands: DIG → ANALYZE → VERIFY → PUBLISH, all while managing your operational runway. Press the button below to take full command!",
+    cta: { label: "Take Full Command", screen: "command" },
+  },
 ];
+

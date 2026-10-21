@@ -48,8 +48,23 @@ export default function XpReportModal() {
         </div>
 
         <div className="flex justify-end gap-2">
-          <button className="btn btn-ghost" onClick={() => { g.setModal(null); g.setScreen("lab"); }}>Open Research Lab</button>
-          <button className="btn btn-primary" onClick={() => { g.setModal(null); g.setScreen("map"); }}>Plan next expedition</button>
+          {g.inTutorial() ? (
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                g.setModal(null);
+                g.setTutorialStep(5);
+                g.setScreen("lab");
+              }}
+            >
+              Continue to Research Lab →
+            </button>
+          ) : (
+            <>
+              <button className="btn btn-ghost" onClick={() => { g.setModal(null); g.setScreen("lab"); }}>Open Research Lab</button>
+              <button className="btn btn-primary" onClick={() => { g.setModal(null); g.setScreen("map"); }}>Plan next expedition</button>
+            </>
+          )}
         </div>
       </div>
     </div>

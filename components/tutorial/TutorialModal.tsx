@@ -1,105 +1,159 @@
 "use client";
-import { useGame } from "@/game/store";
-import { TUTORIAL } from "@/game/data/systems";
+import { useGame, STEP_NAV } from "@/game/store";
+import { TUTORIAL, TOTAL_TUTORIAL_STEPS } from "@/game/data/systems";
 import { SITES } from "@/game/data/world";
-import type { Screen } from "@/game/store";
-
-/** Where "Continue" navigates, per step. null = stay on this screen. */
-const STEP_NAV: Record<number, Screen | null> = {
-  1: null,
-  2: "map",
-  3: "expedition",
-  4: null, // the player stays on the expedition screen during digging
-  5: "lab",
-  6: null, // already in the lab
-  7: "archive",
-  8: null,
-};
 
 export default function TutorialModal() {
   const g = useGame();
-  const s = g.s!;
-  const step = s.tutorialStep;
-  const def = TUTORIAL.find((t) => t.step === Math.min(step, 8)) ?? TUTORIAL[0];
+  const s = g.s;
+  if (!s || !s.tutorialActive || s.tutorialStep > TOTAL_TUTORIAL_STEPS) return null;
 
+  const step = Math.min(s.tutorialStep, TOTAL_TUTORIAL_STEPS);
+  const def = TUTORIAL.find((t) => t.step === step) ?? TUTORIAL[0];
   const satisfied = stepSatisfied(s, step);
 
-  // Non-blocking floating coach card: the player must be able to act on the game
-  // while Dr. Linh guides (the steps only advance when the action is performed).
   return (
     <div className="fixed inset-0 z-50 pointer-events-none flex items-end sm:items-center justify-center sm:justify-end p-3 sm:p-6">
-      <div className="panel-elevated w-full sm:max-w-md max-w-lg p-6 rise-in pointer-events-auto shadow-2xl">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-11 h-11 rounded-full bg-[#172A33] border border-[#C28B49] flex items-center justify-center font-display text-lg text-[#C28B49]">L</div>
-          <div>
-            <div className="font-display text-lg">Dr. Linh</div>
-            <div className="text-[0.7rem] text-[#A2B0B2] uppercase tracking-wider">Senior archaeologist · step {def.step}/8 — {def.title}</div>
+      <div className="panel-elevated w-full sm:max-w-md max-w-lg p-5 sm:p-6 rise-in pointer-events-auto shadow-2xl border border-[#C28B49]/40 backdrop-blur-md bg-[#0d1c26]/95">
+        {/* Header with speaker & Skip tutorial button */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#172A33] border border-[#C28B49] flex items-center justify-center font-display text-lg text-[#C28B49] shadow-inner">
+              L
+            </div>
+            <div>
+              <div className="font-display text-base sm:text-lg text-[#F0E9D9]">Dr. Linh</div>
+              <div className="text-[0.68rem] text-[#A2B0B2] uppercase tracking-wider">
+                Senior Archaeologist · Step {def.step}/{TOTAL_TUTORIAL_STEPS} — {def.title}
+              </div>
+            </div>
           </div>
+          <button
+            className="btn btn-ghost !py-1 !px-2.5 !text-[0.72rem] text-[#A2B0B2] hover:text-[#D66D67] hover:border-[#D66D67]/40 transition-colors shrink-0"
+            onClick={() => g.skipTutorial()}
+            title="Skip tutorial and unlock all institute facilities immediately"
+          >
+            Skip tutorial ✕
+          </button>
         </div>
 
-        <p className="text-sm text-[#F0E9D9]/90 leading-relaxed mb-4">{def.body}</p>
+        {/* Narrative / Instructional text */}
+        <p className="text-xs sm:text-sm text-[#F0E9D9]/90 leading-relaxed mb-3">
+          {def.body}
+        </p>
 
+        {/* Action specific hint cards */}
         {step === 2 && (
-          <div className="panel p-3 text-xs text-[#A2B0B2] mb-4">
-            On the map: press <span className="text-[#F0E9D9]">Plan expedition</span> on the <span className="text-[#F0E9D9]">{SITES[0].name}</span> card.
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 On the Exploration Map: click <span className="text-[#F0E9D9] font-semibold">“Plan expedition”</span> on the <span className="text-[#C28B49] font-medium">{SITES[0].name}</span> card.
           </div>
         )}
         {step === 3 && (
-          <div className="panel p-3 text-xs text-[#A2B0B2] mb-4">
-            On the expedition screen: keep the default plan, then press <span className="text-[#F0E9D9]">Launch expedition</span>.
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 Keep the default 4-worker / 4-day plan, then press the green <span className="text-[#6D9A83] font-semibold">“Launch expedition”</span> button.
           </div>
         )}
         {step === 4 && (
-          <div className="panel p-3 text-xs text-[#A2B0B2] mb-4">
-            Press <span className="text-[#F0E9D9]">Dig on — advance one day</span> until the dig completes. Resolve any field decision (any option is fine).
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 Press <span className="text-[#F0E9D9] font-semibold">“Dig on — advance one day”</span> until the excavation completes. Pick any response to field events.
           </div>
         )}
         {step === 5 && (
-          <div className="panel p-3 text-xs text-[#A2B0B2] mb-4">
-            Select your discovery, then press <span className="text-[#F0E9D9]">Artifact classification</span>.
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 In the Research Lab: select your artifact from the left list, then click <span className="text-[#C28B49] font-semibold">“Artifact classification”</span>.
           </div>
         )}
         {step === 6 && (
-          <div className="panel p-3 text-xs text-[#A2B0B2] mb-4">
-            Run <span className="text-[#F0E9D9]">Reference matching</span>, then press <span className="text-[#F0E9D9]">Verify evidence</span>.
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 Click <span className="text-[#F0E9D9] font-semibold">“Reference matching”</span>, then press <span className="text-[#6D9A83] font-semibold">“Verify evidence”</span> (or Publish if confidence ≥ 55%).
           </div>
         )}
         {step === 7 && (
-          <div className="panel p-3 text-xs text-[#A2B0B2] mb-4">
-            Open your find, press <span className="text-[#F0E9D9]">Publish</span> (needs 55%+ confidence — run more analyses if short).
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 Inspect your cataloged artifact card, conservation requirements, and historical period details.
+          </div>
+        )}
+        {step === 8 && (
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 Note your operational <span className="text-[#F0E9D9] font-semibold">Runway</span> and explore available research grants.
+          </div>
+        )}
+        {step === 9 && (
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 Review regional equipment indices and supply commodities.
+          </div>
+        )}
+        {step === 10 && (
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 Inspect hireable specialists (epigraphers, field staff) and institute laboratory hardware.
+          </div>
+        )}
+        {step === 11 && (
+          <div className="panel p-2.5 text-xs text-[#A2B0B2] mb-3 bg-[#08131a]/80 border-[#C28B49]/30">
+            👉 Review historical cultural periods of Vietnam and past expedition entries in your Journal.
+          </div>
+        )}
+        {step === 12 && (
+          <div className="panel p-2.5 text-xs text-[#6D9A83] mb-3 bg-[#08131a]/80 border-[#6D9A83]/30">
+            ✨ Tour complete! All facilities are ready for your strategic direction.
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          {/* Skip is only offered while replaying the tutorial — first play IS the onboarding. */}
-          {s.tutorialReplay ? (
-            <button className="btn btn-ghost !text-xs" onClick={() => g.skipTutorial()}>Stop tutorial</button>
-          ) : (
-            <span className="text-[0.65rem] text-[#A2B0B2]">Step {def.step} of 8 — complete the action to continue</span>
-          )}
+        {/* Navigation buttons */}
+        <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+          <span className="text-[0.68rem] text-[#A2B0B2]">
+            {satisfied ? "Action ready" : "Complete the step to continue"}
+          </span>
+
           <div className="flex gap-2">
-            {step > 1 && step < 8 && <button className="btn btn-ghost" onClick={() => g.setTutorialStep(step - 1)}>Back</button>}
-            {step < 8 ? (
+            {step > 1 && (
               <button
-                className="btn btn-primary"
+                className="btn btn-ghost !text-xs !py-1.5"
+                onClick={() => {
+                  const prev = step - 1;
+                  g.setTutorialStep(prev);
+                  const scr = STEP_NAV[prev];
+                  if (scr) g.setScreen(scr);
+                }}
+              >
+                ← Back
+              </button>
+            )}
+
+            {step < TOTAL_TUTORIAL_STEPS ? (
+              <button
+                className="btn btn-primary !text-xs !py-1.5"
                 disabled={!satisfied}
                 onClick={() => {
-                  g.setTutorialStep(step + 1);
-                  const nav = STEP_NAV[step + 1] ?? null;
-                  if (nav) g.setScreen(nav);
+                  const next = step + 1;
+                  g.setTutorialStep(next);
+                  const scr = STEP_NAV[next];
+                  if (scr) g.setScreen(scr);
                 }}
-                title={satisfied ? "" : "Do the action above first — then this unlocks."}
+                title={satisfied ? "Proceed to the next guided step" : "Perform the action highlighted above to continue"}
               >
-                {satisfied ? "Continue →" : "Complete the action first"}
+                {satisfied ? "Continue →" : "Action required"}
               </button>
             ) : (
-              <button className="btn btn-primary" onClick={() => g.completeTutorial()}>Finish — you&rsquo;re in charge</button>
+              <button
+                className="btn btn-primary !text-xs !py-1.5 !bg-[#6D9A83] !border-[#6D9A83] hover:!bg-[#5c8570]"
+                onClick={() => g.completeTutorial()}
+              >
+                Finish — Take Full Command ✨
+              </button>
             )}
           </div>
         </div>
-        <div className="flex gap-1 mt-4">
+
+        {/* Progress bar */}
+        <div className="flex gap-1 mt-3">
           {TUTORIAL.map((t) => (
-            <div key={t.step} className={`h-1 flex-1 rounded ${t.step <= step ? "bg-[#C28B49]" : "bg-[#22384a]"}`} />
+            <div
+              key={t.step}
+              className={`h-1 flex-1 rounded transition-colors ${
+                t.step <= step ? "bg-[#C28B49]" : "bg-[#22384a]"
+              }`}
+            />
           ))}
         </div>
       </div>
@@ -107,17 +161,38 @@ export default function TutorialModal() {
   );
 }
 
-/** The tutorial unlocks "Continue" only when the player actually did the step in-game. */
+/** Determines whether the player has performed the required action for the current step. */
 function stepSatisfied(s: import("@/game/engine/types").GameState, step: number): boolean {
   switch (step) {
-    case 1: return true; // intro
-    case 2: return !!s.plannedExpedition; // a site was chosen in planning
-    case 3: return !!s.plannedExpedition; // plan adjusted
-    case 4: return s.expedition !== null; // expedition launched
-    case 5: return s.artifacts.some((a) => a.status !== "unanalyzed"); // first analysis run
-    case 6: return s.artifacts.some((a) => a.evidences.length >= 2); // evidence inspected / matching run
-    case 7: return s.artifacts.some((a) => a.status === "published") || s.grantApplications.length > 0 || s.artifacts.some((a) => a.accessibility > 0);
-    case 8: return true; // summary
-    default: return true;
+    case 1:
+      return true; // Intro
+    case 2:
+      return !!s.plannedExpedition || s.expedition !== null; // Site chosen on map
+    case 3:
+      return s.expedition !== null || s.artifacts.length > 0; // Expedition launched
+    case 4:
+      return (
+        (s.expedition !== null && s.expedition.phase === "complete") ||
+        s.artifacts.length > 0 ||
+        (typeof s.flags.expeditionsCompleted === "number" && s.flags.expeditionsCompleted > 0)
+      ); // Excavation completed or finds recovered
+    case 5:
+      return s.artifacts.some((a) => a.status !== "unanalyzed" || a.researchLog.length > 1); // Ran analysis
+    case 6:
+      return s.artifacts.some((a) => a.evidences.length >= 2 || a.status === "verified" || a.status === "published"); // Verified or second evidence built
+    case 7:
+      return true; // Archive discovery
+    case 8:
+      return true; // Finance discovery
+    case 9:
+      return true; // Market discovery
+    case 10:
+      return true; // Dev discovery
+    case 11:
+      return true; // Codex discovery
+    case 12:
+      return true; // Commission summary
+    default:
+      return true;
   }
 }

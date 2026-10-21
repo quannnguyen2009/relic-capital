@@ -413,6 +413,7 @@ export function resolveExpedition(s: GameState) {
   const rep = Math.round(1 + q * 4 + e.discoveries.length * 1.2);
   s.resources.reputation += rep;
   s.resources.knowledge += 4 + Math.round(q * 6);
+  s.resources.research += 12 + Math.round(q * 8);
 
   const success = e.discoveries.length > 0 || q > 0.55;
   s.morale = clamp(s.morale + (success ? 6 : -8), 10, 100);

@@ -71,9 +71,9 @@ const plan = (over: Partial<ExpeditionPlan> = {}, siteId = "delta-lien-lau"): Ex
       if (o.rng) check(`event ${ev.id} rng p in (0,1)`, o.rng.p > 0 && o.rng.p < 1);
     }
   }
-  // tutorial steps are 1..8, contiguous
+  // tutorial steps are 1..12, contiguous
   const steps = TUTORIAL.map((t) => t.step).sort((a, b) => a - b);
-  check("tutorial steps 1..8", steps.length === 8 && steps.every((v, i) => v === i + 1));
+  check("tutorial steps 1..12", steps.length === 12 && steps.every((v, i) => v === i + 1));
 }
 
 // ── 2. Full campaign loop on 6 seeds across all difficulties ───────────────

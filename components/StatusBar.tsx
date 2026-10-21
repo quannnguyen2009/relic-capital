@@ -33,7 +33,12 @@ export default function StatusBar() {
         <Stat label="Runway" tip="Days you can still operate at current spending. If empty, cash flow is stable.">
           {rl === null ? "stable" : `${rl}d`}
         </Stat>
-        <button className="btn btn-ghost !py-1 !text-[0.75rem]" onClick={() => g.nextDay()} title="Passes one day: charges expenses, advances digs">
+        <button
+          className="btn btn-ghost !py-1 !text-[0.75rem]"
+          disabled={g.inTutorial()}
+          onClick={() => g.nextDay()}
+          title={g.inTutorial() ? "Complete the guided instruction flow first before advancing calendar days." : "Passes one day: charges expenses, advances digs"}
+        >
           Advance day →
         </button>
       </div>

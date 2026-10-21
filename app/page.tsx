@@ -81,11 +81,11 @@ export default function Page() {
       <nav className="border-b hairline bg-[#0b1822] overflow-x-auto">
         <div className="flex">
           {NAV.map((n) => {
-            // During the tutorial, only the guided screen (and the one you're on) is clickable.
+            // During the tutorial, only the guided screen is clickable.
             const guided = game.inTutorial() ? game.guidedScreen() : null;
             const locked = guided !== null && n.id !== guided;
             return locked ? (
-              <Tooltip key={n.id} text="Follow Dr. Linh's step — this unlocks after the tutorial.">
+              <Tooltip key={n.id} text={`🔒 Step ${s.tutorialStep}/12: Follow Dr. Linh's step to unlock ${n.label}, or press "Skip tutorial".`}>
                 <span className="px-4 py-2 text-[0.8rem] whitespace-nowrap border-b-2 border-transparent text-[#3a5062] cursor-not-allowed select-none inline-block">
                   {n.label}
                 </span>
@@ -135,8 +135,10 @@ export default function Page() {
         </span>
       </footer>
 
-      {/* Modals */}
-      {game.modal?.kind === "tutorial" && <TutorialModal />}
+      {/* Tutorial coach card: persists throughout onboarding until completed or skipped */}
+      {game.inTutorial() && <TutorialModal />}
+
+      {/* Ephemeral Modals */}
       {game.modal?.kind === "event" && <EventModal eventId={game.modal.eventId} />}
       {game.modal?.kind === "xp-report" && <XpReportModal />}
       {game.modal?.kind === "achievement" && <AchievementModal ids={game.modal.ids} />}
