@@ -5,8 +5,9 @@ import { newGame } from "../game/engine/newGame";
 import {
   advanceDay, startExpedition, validatePlan, estimateExpedition, advanceExpeditionDay,
   resolveExpeditionDecision, evaluateAchievements, evaluateCampaign, runwayDays, spend, earn,
+  resolveRivalClaim,
 } from "../game/engine/core";
-import { runAnalysis, verifyArtifact, publishArtifact, digitizeArtifact } from "../game/engine/research";
+import { runAnalysis, verifyArtifact, publishArtifact, digitizeArtifact, conserveArtifact } from "../game/engine/research";
 import { initMarket, buy, sell, priceOf } from "../game/engine/market";
 import { applyGrant, resolveGrants, grantScore } from "../game/engine/grants";
 import { maybeSpawnEvent, resolveEvent } from "../game/engine/events";
@@ -77,6 +78,8 @@ interface Store {
   verify: (uid: string) => { ok: boolean; reason?: string };
   publish: (uid: string) => { ok: boolean; reason?: string };
   digitize: (uid: string) => { ok: boolean; reason?: string };
+  conserve: (uid: string) => { ok: boolean; reason?: string };
+  resolveRival: (artifactUid: string, defend: boolean) => { ok: boolean; result: string };
 
   // finance/dev
   applyForGrant: (id: string) => { ok: boolean; reason?: string };
@@ -151,6 +154,12 @@ export const useGame = create<Store>((set, get) => ({
     const res = loadGame();
     if (res.ok && res.state) {
       initMarket(res.state);
+      // Backwards-compat: initialize new fields missing from old saves
+      if (!res.state.rivalClaims) res.state.rivalClaims = [];
+      if (res.state.discoveryStreak === undefined) res.state.discoveryStreak = 0;
+      for (const m of res.state.staff) {
+        if (m.seniorityDays === undefined) m.seniorityDays = 0;
+      }
       const scr = (res.state.tutorialActive && res.state.tutorialStep <= TOTAL_TUTORIAL_STEPS)
         ? (STEP_NAV[res.state.tutorialStep] ?? "command")
         : "command";
@@ -278,6 +287,31 @@ export const useGame = create<Store>((set, get) => ({
       playClickSound();
       saveGame(s);
       set({ s: { ...s } });
+    }
+    return r;
+  },
+
+  conserve: (uid) => {
+    const { s } = get();
+    if (!s) return { ok: false };
+    const r = conserveArtifact(s, uid);
+    if (r.ok) {
+      playClickSound();
+      saveGame(s);
+      set({ s: { ...s } });
+    }
+    return r;
+  },
+
+  resolveRival: (artifactUid, defend) => {
+    const { s } = get();
+    if (!s) return { ok: false, result: "No game." };
+    const r = resolveRivalClaim(s, artifactUid, defend);
+    if (r.ok) {
+      saveGame(s);
+      const ach = evaluateAchievements(s);
+      evaluateCampaign(s);
+      set({ s: { ...s }, modal: ach.length ? { kind: "achievement", ids: ach } : get().modal });
     }
     return r;
   },

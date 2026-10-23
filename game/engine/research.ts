@@ -6,13 +6,13 @@ import { clamp, spend } from "./core";
 let reportSeq = 0;
 
 export const RESEARCH_COSTS: Record<ResearchOp, { research: number; days?: number }> = {
-  classification: { research: 8 },
-  period: { research: 14 },
-  inscription: { research: 22, days: 1 },
-  refMatch: { research: 16 },
-  contextual: { research: 18 },
-  anomaly: { research: 12 },
-  confidence: { research: 10 },
+  classification: { research: 6 },   // cheap first step to classify any find
+  period: { research: 12 },
+  inscription: { research: 18, days: 1 },
+  refMatch: { research: 14 },
+  contextual: { research: 15 },
+  anomaly: { research: 10 },
+  confidence: { research: 8 },
 };
 
 export const RESEARCH_LABELS: Record<ResearchOp, string> = {
@@ -48,6 +48,12 @@ export function runAnalysis(
   spend(s, "research", `${RESEARCH_LABELS[op]}: ${a.name}`, { research: -cost });
   a.researchLog.push({ day: s.day, entry: `${RESEARCH_LABELS[op]} run (−${cost} RP).` });
 
+  // Diminishing returns: each repeat of the same op adds less confidence
+  if (!a.opsRun) a.opsRun = {};
+  const prevCount = a.opsRun[op] ?? 0;
+  const diminishFactor = Math.max(0.25, 1 - prevCount * 0.3);
+  a.opsRun[op] = prevCount + 1;
+
   const rng = makeRng((s.seed ^ hashSeed(`${uid}-${op}-${s.techResearched.length}`)) >>> 0);
   const best = leadingHypothesis(a);
   const support = a.evidences.reduce((acc, e) => acc + e.support, 0);
@@ -62,11 +68,13 @@ export function runAnalysis(
 
   switch (op) {
     case "classification": {
+      const confGain = 0.04 * diminishFactor;
       interpretation = `Type-based reading suggests: ${a.category} artifact; fabric/material (${a.material}) consistent with ${periodName(a)}.`;
       supporting.push("Material and surface treatment consistent with the proposed category.");
       missing.push("No direct analytical sample has been compared with the reference series.");
-      nextStep = "Run Period estimation or Reference matching to test the typological reading.";
+      nextStep = prevCount > 0 ? "Classification has been run before — try a different op for more insight." : "Run Period estimation or Reference matching to test the typological reading.";
       sources.push(findRefs(a.category).slice(0, 2).map((r) => r.ref).join("; ") || "Local reference collection (no close match)");
+      a.confidence = clamp(a.confidence + confGain, 0, 0.96);
       a.status = a.status === "unanalyzed" ? "classified" : a.status;
       break;
     }
@@ -113,10 +121,11 @@ export function runAnalysis(
         : "No close reference match in the local collection.";
       supporting.push(...matches.map((m) => `${m.name}: ${m.note} (${m.ref})`));
       missing.push("Direct side-by-side comparison with a physical type collection has not occurred.");
-      nextStep = "Accept a museum study-visit event when it appears, to raise provenance evidence.";
+      nextStep = prevCount > 1 ? "Reference matching yields diminishing returns. Pursue contextual or anomaly analysis." : "Accept a museum study-visit event when it appears, to raise provenance evidence.";
       if (matches.length) {
-        a.confidence = clamp(a.confidence + 0.1, 0, 0.95);
-        a.evidences.push({ id: `e-r-${a.evidences.length}`, kind: "refMatch", label: "Reference match (partial)", detail: `Closest: ${matches[0].name} (${matches[0].ref}).`, support: 0.35 });
+        const refGain = 0.1 * diminishFactor;
+        a.confidence = clamp(a.confidence + refGain, 0, 0.95);
+        a.evidences.push({ id: `e-r-${a.evidences.length}`, kind: "refMatch", label: `Reference match (${prevCount > 0 ? "repeat" : "initial"})`, detail: `Closest: ${matches[0].name} (${matches[0].ref}).`, support: Math.max(0.1, 0.35 * diminishFactor) });
       }
       sources.push(...matches.map((m) => m.ref));
       break;
@@ -186,31 +195,34 @@ export function runAnalysis(
 export function verifyArtifact(s: GameState, uid: string): { ok: boolean; reason?: string; result?: string } {
   const a = s.artifacts.find((x) => x.uid === uid);
   if (!a) return { ok: false, reason: "Artifact not found." };
-  const cost = 18;
+  const cost = 12;
   if (s.resources.research < cost) return { ok: false, reason: `Verification needs ${cost} research points.` };
   if (a.evidences.length < 2) return { ok: false, reason: "Need at least 2 evidence items before verification. Run more analyses." };
   spend(s, "research", `Verification: ${a.name}`, { research: -cost });
   const rng = makeRng((s.seed ^ hashSeed(`verify-${uid}-${s.day}`)) >>> 0);
-  const good = a.confidence >= 0.55 && rng.chance(0.5 + a.confidence * 0.4);
-  a.researchLog.push({ day: s.day, entry: `Verification attempt (−18 RP).` });
+  // Higher confidence → much more reliable; only truly low-confidence finds risk a setback
+  const successChance = clamp(0.65 + a.confidence * 0.32, 0.5, 0.97);
+  const good = a.confidence >= 0.50 && rng.chance(successChance);
+  a.researchLog.push({ day: s.day, entry: `Verification attempt (−${cost} RP).` });
   if (good) {
     a.confidence = clamp(a.confidence + 0.18, 0, 0.96);
     a.evidences.push({ id: `e-v-${a.evidences.length}`, kind: "refMatch", label: "Verification review", detail: "Independent review of evidence chain raised confidence.", support: 0.5 });
     a.researchLog.push({ day: s.day, entry: "Verification passed — attribution now robust." });
   } else {
-    a.confidence = clamp(a.confidence - 0.1, 0, 0.9);
-    a.researchLog.push({ day: s.day, entry: "Verification inconclusive — confidence revised downward; more evidence needed." });
+    // Softer fail: only small confidence drop, encourage retry
+    a.confidence = clamp(a.confidence - 0.06, 0, 0.9);
+    a.researchLog.push({ day: s.day, entry: "Verification inconclusive — minor revision; consider adding more evidence first." });
   }
   a.confidenceLabel = a.confidence >= 0.85 ? "verified" : a.confidence >= 0.7 ? "robust" : a.confidence >= 0.5 ? "probable" : "hypothesis";
   if (a.confidenceLabel === "verified") a.status = "verified";
-  return { ok: true, result: good ? "Verification passed." : "Verification inconclusive — confidence revised downward." };
+  return { ok: true, result: good ? "Verification passed." : "Verification inconclusive — add more evidence then retry." };
 }
 
 /** Publication: convert a verified/robust finding into public research output. */
 export function publishArtifact(s: GameState, uid: string): { ok: boolean; reason?: string } {
   const a = s.artifacts.find((x) => x.uid === uid);
   if (!a) return { ok: false, reason: "Artifact not found." };
-  if (a.confidence < 0.55) return { ok: false, reason: "Confidence too low to publish (≥ 0.55 needed). Verify the attribution first." };
+  if (a.confidence < 0.50) return { ok: false, reason: "Confidence too low to publish (≥ 50% needed). Run more analyses to build evidence." };
   const cost = 10;
   if (s.resources.research < cost) return { ok: false, reason: `Publication needs ${cost} research points.` };
   spend(s, "research", `Publishing: ${a.name}`, { research: -cost });
@@ -224,6 +236,30 @@ export function publishArtifact(s: GameState, uid: string): { ok: boolean; reaso
   a.accessibility = clamp(a.accessibility + 0.5, 0, 1);
   a.researchLog.push({ day: s.day, entry: `Published. Income +${payout}đ, reputation up. Accessibility improved.` });
   s.journal.push({ day: s.day, kind: "progress", entry: `Published ${a.name} — +${payout}đ, reputation up.` });
+
+  // High-significance publications may attract rival attention (once per artifact)
+  const rivalChance = a.significance >= 8 ? 0.4 : a.significance >= 6 ? 0.2 : 0.08;
+  if (!a.rivalClaim && Math.random() < rivalChance) {
+    // Import-free inline rival spawn (avoids circular imports)
+    const RIVALS = [
+      "Northern Archaeological Institute",
+      "Hanoi University Research Centre",
+      "Southeast Asian Heritage Consortium",
+      "Mekong Archaeology Foundation",
+      "Pacific Rim Antiquities Bureau",
+    ];
+    const rival = RIVALS[Math.floor(Math.random() * RIVALS.length)];
+    a.rivalClaim = true;
+    s.rivalClaims.push({
+      artifactUid: uid,
+      rivalName: rival,
+      day: s.day,
+      challengeText: `${rival} has published a counter-attribution for ${a.name}, disputing the period assignment. Your evidence must now withstand public scrutiny.`,
+      resolved: null,
+    });
+    s.journal.push({ day: s.day, kind: "event", entry: `RIVAL CLAIM after publication: ${rival} disputes your attribution of ${a.name}. Respond in the Lab to defend your findings.` });
+  }
+
   return { ok: true };
 }
 
@@ -236,6 +272,29 @@ export function digitizeArtifact(s: GameState, uid: string): { ok: boolean; reas
   spend(s, "conservation", `Digitization: ${a.name}`, { cash: -cost });
   a.accessibility = clamp(a.accessibility + 0.45, 0, 1);
   a.researchLog.push({ day: s.day, entry: "Digitized record created — publicly accessible documentation improved." });
+  return { ok: true };
+}
+
+/** Conserve / stabilize an artifact: resets the degradation timer and slightly improves condition. */
+export function conserveArtifact(s: GameState, uid: string): { ok: boolean; reason?: string } {
+  const a = s.artifacts.find((x) => x.uid === uid);
+  if (!a) return { ok: false, reason: "Artifact not found." };
+  const cost = 6000;
+  if (s.resources.cash < cost) return { ok: false, reason: `Conservation treatment costs ${cost}đ.` };
+  spend(s, "conservation", `Conservation treatment: ${a.name}`, { cash: -cost });
+  a.lastConservationDay = s.day;
+  // Improve condition by one step if degraded
+  const conds: Array<"pristine" | "good" | "fair" | "poor" | "fragile"> = ["pristine", "good", "fair", "poor", "fragile"];
+  const idx = conds.indexOf(a.condition);
+  if (idx > 1) {
+    a.condition = conds[idx - 1];
+    a.researchLog.push({ day: s.day, entry: `Conservation treatment applied. Condition improved to ${a.condition}. Degradation timer reset.` });
+  } else {
+    a.researchLog.push({ day: s.day, entry: `Conservation treatment applied. Condition maintained at ${a.condition}. Degradation timer reset.` });
+  }
+  // Slight confidence restore
+  a.confidence = clamp(a.confidence + 0.03, 0, 0.96);
+  s.journal.push({ day: s.day, kind: "progress", entry: `Conserved ${a.name} — condition ${a.condition}, degradation reset.` });
   return { ok: true };
 }
 

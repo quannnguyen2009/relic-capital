@@ -29,25 +29,30 @@ export const EQUIPMENT_DEFS: EquipmentDef[] = [
 
 // ── Grants ───────────────────────────────────────────────────────────────────
 export const GRANTS: GrantDef[] = [
-  { id: "documentation", name: "Documentation Grant", desc: "Rewards complete, well-organized artifact records.", payout: 45000, repRequired: 2, requires: { minArtifacts: 2, minProvenanceAvg: 0.3 }, durationDays: 4, cooldownDays: 10 },
-  { id: "conservation", name: "Conservation Grant", desc: "Rewards safe recovery and preservation of fragile material.", payout: 52000, repRequired: 6, requires: { minArtifacts: 4, minConditionGood: 2 }, durationDays: 5, cooldownDays: 14 },
-  { id: "digital-heritage", name: "Digital Heritage Grant", desc: "Rewards digitization and AI-assisted documentation.", payout: 60000, repRequired: 10, requires: { minArtifacts: 8, minDigitized: 5, minVerified: 3 }, durationDays: 5, cooldownDays: 16 },
-  { id: "regional-survey", name: "Regional Survey Grant", desc: "Rewards exploration of an under-researched region.", payout: 56000, repRequired: 8, requires: { regionUnderExplored: "highlands", minArtifacts: 5 }, durationDays: 5, cooldownDays: 15 },
-  { id: "public-access", name: "Public Access Grant", desc: "Rewards publishing findings and making research accessible.", payout: 48000, repRequired: 4, requires: { minPublications: 2 }, durationDays: 4, cooldownDays: 12 },
+  // First-accessible grant: just 2 artifacts with basic documentation
+  { id: "documentation", name: "Documentation Grant", desc: "Rewards complete, well-organized artifact records.", payout: 45000, repRequired: 1, requires: { minArtifacts: 2, minProvenanceAvg: 0.15 }, durationDays: 4, cooldownDays: 10 },
+  { id: "conservation", name: "Conservation Grant", desc: "Rewards safe recovery and preservation of fragile material.", payout: 52000, repRequired: 5, requires: { minArtifacts: 3, minConditionGood: 2 }, durationDays: 5, cooldownDays: 14 },
+  { id: "digital-heritage", name: "Digital Heritage Grant", desc: "Rewards digitization and AI-assisted documentation.", payout: 60000, repRequired: 10, requires: { minArtifacts: 6, minDigitized: 4, minVerified: 2 }, durationDays: 5, cooldownDays: 16 },
+  { id: "regional-survey", name: "Regional Survey Grant", desc: "Rewards exploration of an under-researched region.", payout: 56000, repRequired: 7, requires: { regionUnderExplored: "highlands", minArtifacts: 4 }, durationDays: 5, cooldownDays: 15 },
+  // Second-accessible grant: just 1 published finding
+  { id: "public-access", name: "Public Access Grant", desc: "Rewards publishing findings and making research accessible.", payout: 48000, repRequired: 3, requires: { minPublications: 1 }, durationDays: 4, cooldownDays: 12 },
 ];
 
 // ── Research tech tree ───────────────────────────────────────────────────────
 export const TECHS: ResearchTechDef[] = [
-  { id: "stratigraphic-control", name: "Stratigraphic Control", desc: "Single-context recording: better context evidence from every dig.", cost: { research: 60 }, effects: { evidenceBonus: 0.1, damageReduction: 0.1 } },
-  { id: "photogrammetry", name: "Photogrammetry Pipeline", desc: "3D capture workflow; unlocks the Portable Scanner.", cost: { research: 90, cash: 18000 }, effects: { evidenceBonus: 0.12 } },
-  { id: "analytical-lab", name: "Analytical Laboratory", desc: "On-site material analysis — cheaper, deeper analyses.", cost: { research: 130, cash: 26000, requiresTech: ["stratigraphic-control"] }, effects: { analysisCostReduction: 0.2, evidenceBonus: 0.08 } },
-  { id: "radiocarbon-access", name: "Radiocarbon Access", desc: "Paid-access radiocarbon dating: sharp period confidence gains.", cost: { research: 170, cash: 40000, requiresTech: ["analytical-lab"] }, effects: { evidenceBonus: 0.2 } },
-  { id: "dn-chrono", name: "Đông Sơn Type Series", desc: "Institutewide reference typology for Bronze Age ceramics and bronzes.", cost: { research: 110 }, effects: { evidenceBonus: 0.1, expeditionEfficiency: 0.05 } },
-  { id: "field-school", name: "Field School Program", desc: "Trains workers on-site: expeditions run more efficiently.", cost: { research: 80, cash: 12000 }, effects: { expeditionEfficiency: 0.15 } },
-  { id: "climate-shields", name: "Climate Protection Protocol", desc: "Weather response planning; reduces rain/heat damage.", cost: { research: 70, cash: 9000 }, effects: { damageReduction: 0.15 } },
-  { id: "open-data", name: "Open Data Initiative", desc: "Publishes datasets, lifting all grants' quality scores and reputation gain.", cost: { research: 100, cash: 14000 }, effects: { siteUnlock: undefined } },
-  { id: "text-corpus", name: "Hán–Nôm Text Corpus", desc: "Annotated corpus access; big boost to inscription analysis.", cost: { research: 150, cash: 22000, requiresTech: ["analytical-lab"] }, effects: { evidenceBonus: 0.15 } },
-  { id: "vehicle-fleet", name: "Vehicle & Logistics Base", desc: "Institute trucks: lower expedition costs, more supplies carried.", cost: { research: 60, cash: 30000 }, effects: { expeditionEfficiency: 0.2 } },
+  // Tier 1 — unlock after first expedition (cheap, high-impact)
+  { id: "stratigraphic-control", name: "Stratigraphic Control", desc: "Single-context recording: better context evidence from every dig.", cost: { research: 40 }, effects: { evidenceBonus: 0.1, damageReduction: 0.1 } },
+  { id: "climate-shields",       name: "Climate Protection Protocol", desc: "Weather response planning; reduces rain/heat damage.", cost: { research: 45, cash: 7000 }, effects: { damageReduction: 0.15 } },
+  // Tier 2 — mid-game unlocks
+  { id: "photogrammetry",   name: "Photogrammetry Pipeline", desc: "3D capture workflow; unlocks the Portable Scanner.", cost: { research: 75, cash: 16000 }, effects: { evidenceBonus: 0.12 } },
+  { id: "dn-chrono",        name: "Đông Sơn Type Series", desc: "Institutewide reference typology for Bronze Age ceramics and bronzes.", cost: { research: 80 }, effects: { evidenceBonus: 0.1, expeditionEfficiency: 0.05 } },
+  { id: "field-school",     name: "Field School Program", desc: "Trains workers on-site: expeditions run more efficiently.", cost: { research: 65, cash: 10000 }, effects: { expeditionEfficiency: 0.15 } },
+  { id: "open-data",        name: "Open Data Initiative", desc: "Publishes datasets, lifting all grants' quality scores and reputation gain.", cost: { research: 85, cash: 12000 }, effects: { siteUnlock: undefined } },
+  // Tier 3 — late-game (require prerequisites)
+  { id: "analytical-lab",     name: "Analytical Laboratory", desc: "On-site material analysis — cheaper, deeper analyses.", cost: { research: 110, cash: 22000, requiresTech: ["stratigraphic-control"] }, effects: { analysisCostReduction: 0.2, evidenceBonus: 0.08 } },
+  { id: "vehicle-fleet",      name: "Vehicle & Logistics Base", desc: "Institute trucks: lower expedition costs, more supplies carried.", cost: { research: 55, cash: 26000 }, effects: { expeditionEfficiency: 0.2 } },
+  { id: "text-corpus",        name: "Hán–Nôm Text Corpus", desc: "Annotated corpus access; big boost to inscription analysis.", cost: { research: 130, cash: 20000, requiresTech: ["analytical-lab"] }, effects: { evidenceBonus: 0.15 } },
+  { id: "radiocarbon-access", name: "Radiocarbon Access", desc: "Paid-access radiocarbon dating: sharp period confidence gains.", cost: { research: 150, cash: 36000, requiresTech: ["analytical-lab"] }, effects: { evidenceBonus: 0.2 } },
 ];
 
 // ── Market instruments (all fictional, in-game) ──────────────────────────────
@@ -61,9 +66,9 @@ export const INSTRUMENTS: Instrument[] = [
 
 // ── Difficulties ─────────────────────────────────────────────────────────────
 export const DIFFICULTIES: Record<string, DifficultyDef> = {
-  story: { id: "story", name: "Story", desc: "Generous funding, forgiving setbacks.", startingCash: 180000, opExpensePerDay: 1200, eventRisk: 0.6, grantSeverity: 0.8 },
-  standard: { id: "standard", name: "Standard", desc: "Balanced costs, meaningful risks.", startingCash: 120000, opExpensePerDay: 1900, eventRisk: 1, grantSeverity: 1 },
-  expert: { id: "expert", name: "Expert", desc: "Tighter budgets, greater uncertainty.", startingCash: 95000, opExpensePerDay: 2600, eventRisk: 1.35, grantSeverity: 1.2 },
+  story:    { id: "story",    name: "Story",    desc: "Generous funding, forgiving setbacks.",      startingCash: 200000, startingResearch: 120, startingSupplies: 60, opExpensePerDay: 900,  eventRisk: 0.5, grantSeverity: 0.7 },
+  standard: { id: "standard", name: "Standard", desc: "Balanced costs, meaningful risks.",          startingCash: 150000, startingResearch: 80,  startingSupplies: 45, opExpensePerDay: 1600, eventRisk: 0.9, grantSeverity: 0.9 },
+  expert:   { id: "expert",   name: "Expert",   desc: "Tighter budgets, greater uncertainty.",      startingCash: 100000, startingResearch: 55,  startingSupplies: 30, opExpensePerDay: 2400, eventRisk: 1.3, grantSeverity: 1.15 },
 };
 
 // ── Campaign chapters ────────────────────────────────────────────────────────
@@ -99,6 +104,18 @@ export const CAMPAIGN: CampaignChapter[] = [
       { id: "o3-two-regions", text: "Complete expeditions in 3 different regions" },
       { id: "o3-publish", text: "Publish 5 findings" },
       { id: "o3-cash", text: "Hold ≥ 250,000đ in reserves" },
+    ],
+  },
+  {
+    id: "ch4",
+    title: "Chapter IV — International Symposium",
+    requiredRep: 55,
+    briefing: "The institute has earned international recognition. Prepare your flagship collection for the Southeast Asian Heritage Symposium. Achieve a robust publication record, successfully defend a rival attribution claim, and build a financial endowment that will sustain the institute for generations.",
+    objectives: [
+      { id: "o4-published10", text: "Publish 10 findings" },
+      { id: "o4-defended", text: "Successfully defend a rival claim" },
+      { id: "o4-endowment", text: "Hold ≥ 500,000đ in institutional reserves" },
+      { id: "o4-all-regions", text: "Unlock all 5 regions" },
     ],
   },
 ];
@@ -252,6 +269,82 @@ export const GAME_EVENTS: GameEventDef[] = [
       { id: "improvise", label: "Improvise with manual tools", costText: "−5 progress days, team energy −12", cost: { energy: 12 }, effects: { expeditionProgress: -5, morale: -4 } },
     ],
   },
+
+  // ── New events ──────────────────────────────────────────────────────────
+  {
+    id: "conference-invite",
+    title: "International Conference Invitation",
+    text: "The Southeast Asian Heritage Symposium has issued a formal invitation for your institute to present recent findings. A paper presentation would boost international standing but costs preparation time.",
+    weight: 7,
+    minDay: 20,
+    options: [
+      { id: "present", label: "Prepare and present a paper (15 RP, +6 rep)", costText: "−15 research, +6 reputation", cost: { research: 15 }, effects: { reputation: 6, morale: 5 } },
+      { id: "send-poster", label: "Submit a poster only (5 RP, +2 rep)", costText: "−5 research, +2 reputation", cost: { research: 5 }, effects: { reputation: 2 } },
+      { id: "decline-conference", label: "Politely decline — too early for international exposure", costText: "none", effects: {} },
+    ],
+  },
+  {
+    id: "rival-collaboration",
+    title: "Rival Institute Offers Collaboration",
+    text: "The Southeast Asian Heritage Consortium — a competing institute — proposes a joint excavation at a mutually interesting site. Partnership would share costs and finds, but also credit.",
+    weight: 6,
+    minDay: 18,
+    options: [
+      { id: "joint-excavation", label: "Accept joint excavation (shared cost and credit)", costText: "+20,000đ grant advance, shared credit", effects: { reputation: 3, morale: 4, unlockFlag: "consortiumPartner" } },
+      { id: "counter-solo", label: "Counter-propose solo access — negotiate your own permit", costText: "−8,000đ negotiation, full credit if approved", cost: { cash: 8000 }, effects: { reputation: 1 } },
+      { id: "decline-rival", label: "Decline — maintain independence", costText: "none", effects: {} },
+    ],
+  },
+  {
+    id: "forgery-allegation",
+    title: "Forgery Allegation",
+    text: "An anonymous blog post claims one of your published artifacts may be a modern forgery. The claim is unverified, but it is spreading in academic circles.",
+    weight: 5,
+    minDay: 15,
+    options: [
+      { id: "commission-forensic", label: "Commission forensic analysis to clear the record (18,000đ)", costText: "−18,000đ, clears allegation", cost: { cash: 18000 }, effects: { reputation: 3, morale: 3 } },
+      { id: "publish-rebuttal", label: "Publish a methodological rebuttal (20 research)", costText: "−20 RP, partial reputation recovery", cost: { research: 20 }, effects: { reputation: 1 } },
+      { id: "ignore-allegation", label: "Ignore — anonymous claims without evidence", costText: "reputation risk",
+        rng: { p: 0.4, successText: "The allegation fades without further traction.", failureText: "Without a response, the claim gains momentum. Reputation damaged.", failureEffects: { reputation: -4, morale: -6 } } },
+    ],
+  },
+  {
+    id: "monsoon-flooding",
+    title: "Monsoon Flooding Alert",
+    text: "Seasonal monsoon rains have flooded roads into the excavation zone. The team is cut off — resupply is impossible until water levels drop.",
+    weight: 7,
+    requiresActiveExpedition: true,
+    options: [
+      { id: "air-resupply", label: "Charter helicopter resupply (22,000đ)", costText: "−22,000đ, expedition continues", cost: { cash: 22000 }, effects: { morale: 2 } },
+      { id: "work-with-what-we-have", label: "Work with remaining supplies — reduce workers", costText: "−4 energy, expedition slows", cost: { energy: 4 }, effects: { expeditionProgress: -3, morale: -4 } },
+      { id: "evacuate-team", label: "Evacuate team and halt dig until access restored", costText: "−6 progress days", effects: { expeditionProgress: -6, morale: -2, suppliesDelta: 6 } },
+    ],
+  },
+  {
+    id: "press-coverage",
+    title: "Unexpected Press Coverage",
+    text: "A local journalist has featured your institute's work in a major publication, generating public interest. This creates both opportunity and scrutiny.",
+    weight: 7,
+    minDay: 10,
+    options: [
+      { id: "embrace-media", label: "Embrace the coverage — public engagement talk (+rep, +morale)", costText: "−4,000đ event costs, +5 reputation", cost: { cash: 4000 }, effects: { reputation: 5, morale: 7 } },
+      { id: "measured-response", label: "Issue a careful academic statement only", costText: "free, small reputation gain", effects: { reputation: 2 } },
+      { id: "no-comment", label: "No comment — let findings speak for themselves", costText: "none",
+        rng: { p: 0.6, successText: "Public interest organically grows. Modest reputation gain.", failureText: "Silence is misinterpreted as evasion. Slight reputation dip.", successEffects: { reputation: 1 }, failureEffects: { reputation: -1 } } },
+    ],
+  },
+  {
+    id: "intern-offer",
+    title: "Graduate Intern Programme",
+    text: "A local university offers to place two archaeology graduate students with your institute for a 20-day placement. They would generate extra research points but require supervision time.",
+    weight: 8,
+    minDay: 8,
+    options: [
+      { id: "accept-interns", label: "Accept — assign them to the lab (+30 research over 20 days)", costText: "+30 research, −2,000đ admin", cost: { cash: 2000 }, effects: { unlockFlag: "internActive" } },
+      { id: "field-interns", label: "Deploy to field support (next expedition +efficiency)", costText: "+expedition efficiency, −2,000đ admin", cost: { cash: 2000 }, effects: { morale: 3, unlockFlag: "internField" } },
+      { id: "decline-interns", label: "Decline — no capacity right now", costText: "none", effects: {} },
+    ],
+  },
 ];
 
 // ── Achievements ─────────────────────────────────────────────────────────────
@@ -264,6 +357,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "two-regions", name: "Cross the Pass", desc: "Run expeditions in 2 different regions.", check: (s) => new Set(s.artifacts.map((a) => siteRegionOf(a.siteId))).size >= 2 },
   { id: "cash-rich", name: "Runway Secured", desc: "Hold ≥ 200,000đ.", check: (s) => s.resources.cash >= 200000 },
   { id: "all-tech", name: "Rigorous Institute", desc: "Research 5 technologies.", check: (s) => s.techResearched.length >= 5 },
+  // New achievements for deep play
+  { id: "rival-defender", name: "Stand Your Ground", desc: "Successfully defend a rival institution's attribution claim.", check: (s) => (s.rivalClaims ?? []).some((c) => c.resolved === "defended") },
+  { id: "assemblage-scholar", name: "Context is Everything", desc: "Trigger an assemblage coherence bonus (2 co-verified artifacts from the same site-era).", check: (s) => s.artifacts.some((a) => (a.assemblageBonus ?? 0) >= 1) },
+  { id: "senior-team", name: "Mentored Corps", desc: "Have a staff member reach skill level 5 through seniority.", check: (s) => s.staff.some((m) => m.skill >= 5 && (m.seniorityDays ?? 0) >= 60) },
+  { id: "conservator-active", name: "Preservation First", desc: "Perform conservation treatment on 3 different artifacts.", check: (s) => s.artifacts.filter((a) => (a.lastConservationDay ?? 0) > 0).length >= 3 },
 ];
 
 export function siteRegionOf(siteId: string): string {

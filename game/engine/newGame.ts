@@ -12,12 +12,12 @@ export function newGame(difficulty: Difficulty = "standard", seed?: number): Gam
 
     resources: {
       cash: d.startingCash,
-      research: 60,
-      supplies: 30,
+      research: d.startingResearch,
+      supplies: d.startingSupplies,
       energy: 100,
-      knowledge: 5,
+      knowledge: 15,
       reputation: 0,
-      conservation: 3,
+      conservation: 5,
     },
     morale: 72,
 
@@ -65,6 +65,9 @@ export function newGame(difficulty: Difficulty = "standard", seed?: number): Gam
 
     campaignChapter: 0,
     campaignCompleted: false,
+
+    rivalClaims: [],
+    discoveryStreak: 0,
   };
   return s;
 }

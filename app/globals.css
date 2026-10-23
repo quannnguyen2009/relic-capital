@@ -2,151 +2,356 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════
+   PIXEL ART DESIGN SYSTEM
+   ═══════════════════════════════════════ */
+
 :root {
-  --bg: #09131B;
-  --surface: #101F29;
-  --elevated: #172A33;
-  --ink: #F0E9D9;
-  --ink-dim: #A2B0B2;
-  --bronze: #C28B49;
-  --jade: #6D9A83;
-  --terracotta: #B9654B;
-  --danger: #D66D67;
-  --line: rgba(240, 233, 217, 0.12);
+  --bg:         #0a0e14;
+  --surface:    #111820;
+  --elevated:   #19242f;
+  --ink:        #e8d8b0;
+  --ink-dim:    #8a9ea8;
+  --bronze:     #c89b3c;
+  --jade:       #4da87a;
+  --terracotta: #c05c38;
+  --danger:     #e04040;
+  --line:       rgba(232, 216, 176, 0.14);
+
+  --px-border: 2px solid var(--line);
+  --px-border-bronze: 2px solid var(--bronze);
+  --px-border-jade: 2px solid var(--jade);
+  --px-border-danger: 2px solid var(--danger);
+  --px-shadow: 4px 4px 0px rgba(0,0,0,0.8);
+  --px-shadow-inset: inset 2px 2px 0px rgba(255,255,255,0.06), inset -2px -2px 0px rgba(0,0,0,0.4);
+}
+
+/* ── Force pixelated rendering & square corners globally ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border-radius: 0 !important;
 }
 
 html, body {
   background: var(--bg);
   color: var(--ink);
-  font-feature-settings: "tnum" 1, "lnum" 1;
+  /* Chakra Petch (retro arcade) + VT323 (CRT pixel) + Be Vietnam Pro: 100% full Vietnamese support */
+  font-family: var(--font-chakra), var(--font-vt323), var(--font-vietnam), monospace, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
-body {
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+/* CRT scanlines */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.10) 2px,
+    rgba(0,0,0,0.10) 4px
+  );
+}
+/* CRT vignette */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
 }
 
-.font-display {
-  font-family: var(--font-serif), Georgia, serif;
+.font-pixel  { font-family: var(--font-pixel), var(--font-vt323), var(--font-chakra), monospace; }
+/* font-display uses Chakra Petch / VT323 for retro arcade headings with 100% Vietnamese support */
+.font-display { font-family: var(--font-chakra), var(--font-vt323), var(--font-vietnam), monospace !important; letter-spacing: 0.03em; }
+.font-vt     { font-family: var(--font-vt323), var(--font-chakra), var(--font-vietnam), monospace; }
+.font-retro  { font-family: var(--font-chakra), var(--font-vt323), var(--font-vietnam), sans-serif; }
+
+/* For Vietnamese i18n text: complete glyph coverage */
+.vi-text {
+  font-family: var(--font-chakra), var(--font-vt323), var(--font-vietnam), monospace !important;
 }
 
 .num {
+  font-family: var(--font-vt323), var(--font-chakra), monospace;
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+  letter-spacing: 0.05em;
 }
 
-/* panel look */
+
+/* ── Panel ── */
 .panel {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: var(--px-border);
+  box-shadow: var(--px-shadow), var(--px-shadow-inset);
+  position: relative;
 }
 .panel-elevated {
   background: var(--elevated);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: var(--px-border);
+  box-shadow: var(--px-shadow), var(--px-shadow-inset);
+  position: relative;
+}
+/* Pixel corner notch decoration */
+.panel::before, .panel-elevated::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 6px; height: 6px;
+  background: var(--bg);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  z-index: 1;
 }
 
 .hairline { border-color: var(--line); }
 
+
+/* ── Buttons ── pixel-style: square, hard shadow, chunky ── */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.9rem;
-  border-radius: 4px;
-  border: 1px solid var(--line);
-  font-size: 0.85rem;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  padding: 0.4rem 0.8rem;
+  border: 2px solid var(--line);
+  /* Use Chakra Petch + VT323 so Vietnamese text in buttons renders with sharp retro style and full diacritics */
+  font-family: var(--font-chakra), var(--font-vt323), var(--font-vietnam), monospace, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   cursor: pointer;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 3px 3px 0px rgba(0,0,0,0.8);
+  transition: transform 0.05s steps(1), box-shadow 0.05s steps(1);
+  position: relative;
+  text-transform: uppercase;
+  user-select: none;
 }
-.btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--bronze); color: #1a120a; border-color: var(--bronze); font-weight: 600; }
-.btn-primary:hover { background: #d9a05e; }
-.btn-jade { background: transparent; color: var(--jade); border-color: var(--jade); }
-.btn-jade:hover { background: rgba(109, 154, 131, 0.12); }
-.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
-.btn-ghost:hover { background: rgba(240, 233, 217, 0.06); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+/* For ASCII-only buttons, optionally add btn-ascii for Press Start 2P */
+.btn-ascii {
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.5rem;
+}
+.btn:hover {
+  background: var(--elevated);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px rgba(0,0,0,0.8);
+}
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px rgba(0,0,0,0.8);
+}
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 1px 1px 0px rgba(0,0,0,0.5);
+}
+.btn-primary {
+  background: var(--bronze);
+  color: #1a100a;
+  border-color: #e8b84a;
+  box-shadow: 3px 3px 0px #6b4a10, var(--px-shadow-inset);
+  font-weight: 700;
+}
+.btn-primary:hover {
+  background: #dba94a;
+  box-shadow: 4px 4px 0px #6b4a10, var(--px-shadow-inset);
+}
+.btn-primary:active {
+  background: #a07828;
+  box-shadow: 1px 1px 0px #6b4a10;
+}
+.btn-jade {
+  background: transparent;
+  color: var(--jade);
+  border-color: var(--jade);
+  box-shadow: 3px 3px 0px #1a4a2c;
+}
+.btn-jade:hover {
+  background: rgba(77,168,122,0.15);
+  box-shadow: 4px 4px 0px #1a4a2c;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+  box-shadow: 2px 2px 0px rgba(0,0,0,0.6);
+}
+.btn-ghost:hover {
+  background: rgba(232,216,176,0.06);
+  border-color: var(--ink-dim);
+}
 
+/* ── Tag / Badge ── */
 .tag {
   display: inline-flex;
   align-items: center;
-  padding: 0.1rem 0.5rem;
-  border-radius: 3px;
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
+  padding: 0.1rem 0.45rem;
+  /* Chakra Petch + VT323 so Vietnamese tag text renders without missing glyphs */
+  font-family: var(--font-chakra), var(--font-vt323), var(--font-vietnam), monospace, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   color: var(--ink-dim);
+  box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
 }
 
+
+/* ── Input ── */
 .input {
   background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 0.4rem 0.6rem;
+  border: 2px solid var(--line);
+  padding: 0.35rem 0.55rem;
   color: var(--ink);
   width: 100%;
+  font-family: var(--font-chakra), var(--font-vt323), var(--font-vietnam), monospace;
+  font-size: 0.95rem;
+  box-shadow: inset 2px 2px 0px rgba(0,0,0,0.5);
 }
-.input:focus { outline: none; border-color: var(--bronze); }
+.input:focus {
+  outline: none;
+  border-color: var(--bronze);
+  box-shadow: inset 2px 2px 0px rgba(0,0,0,0.5), 0 0 0 2px rgba(200,155,60,0.25);
+}
 
-/* tooltip */
+
+/* ── Tooltip ── */
 .tthost { position: relative; }
 .tthost .tthost-body {
   visibility: hidden;
   opacity: 0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.08s steps(3);
   position: absolute;
   z-index: 50;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
-  max-width: 260px;
-  background: #0b1822;
-  border: 1px solid var(--line);
+  max-width: 240px;
+  background: #060a0e;
+  border: 2px solid var(--bronze);
   color: var(--ink);
-  font-size: 0.75rem;
+  font-family: var(--font-vt323), monospace;
+  font-size: 0.95rem;
   line-height: 1.35;
-  padding: 0.5rem 0.65rem;
-  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
   pointer-events: none;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+  box-shadow: 4px 4px 0px rgba(0,0,0,0.9);
 }
-.tthost:hover .tthost-body, .tthost:focus-within .tthost-body { visibility: visible; opacity: 1; }
-
-/* reveal animation */
-@keyframes riseIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.tthost .tthost-body::after {
+  content: '▼';
+  position: absolute;
+  bottom: -1.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--bronze);
+  font-size: 0.8rem;
+  line-height: 1;
 }
-.rise-in { animation: riseIn 0.45s ease both; }
+.tthost:hover .tthost-body,
+.tthost:focus-within .tthost-body { visibility: visible; opacity: 1; }
 
-@keyframes shimmer {
-  0% { opacity: 0.55; }
-  50% { opacity: 1; }
-  100% { opacity: 0.55; }
+
+/* ── Pixel Animations ── */
+@keyframes pixelFadeIn {
+  0%   { opacity: 0; transform: translateY(8px); }
+  50%  { opacity: 0.5; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-.pulse-soft { animation: shimmer 2.2s ease-in-out infinite; }
+.rise-in { animation: pixelFadeIn 0.4s steps(8) both; }
 
-@keyframes flashGold {
-  0% { box-shadow: 0 0 0 0 rgba(194, 139, 73, 0.55); }
-  100% { box-shadow: 0 0 0 14px rgba(194, 139, 73, 0); }
+@keyframes pixelBlink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
-.gild-flash { animation: flashGold 0.9s ease-out; }
+.pulse-soft { animation: pixelBlink 1.2s steps(1) infinite; }
 
-/* cover screen slow zoom */
+@keyframes pixelGlow {
+  0%   { box-shadow: 3px 3px 0px rgba(0,0,0,0.8), 0 0 0 0 rgba(200,155,60,0.7); }
+  50%  { box-shadow: 3px 3px 0px rgba(0,0,0,0.8), 0 0 0 4px rgba(200,155,60,0.4); }
+  100% { box-shadow: 3px 3px 0px rgba(0,0,0,0.8), 0 0 0 8px rgba(200,155,60,0); }
+}
+.gild-flash { animation: pixelGlow 0.9s steps(6) forwards; }
+
 @keyframes coverZoom {
   from { transform: scale(1); }
-  to { transform: scale(1.08); }
+  to   { transform: scale(1.06); }
 }
-.cover-zoom { animation: coverZoom 28s ease-in-out forwards; }
+.cover-zoom { animation: coverZoom 30s steps(60) forwards; }
+
+/* ── Pixel Scrollbar ── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: var(--bronze);
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-track { background: var(--surface); border-left: 2px solid var(--line); }
+::-webkit-scrollbar-corner { background: var(--bg); }
+
+/* ── Utility classes ── */
+.text-glow-bronze { text-shadow: 0 0 8px rgba(200,155,60,0.8), 0 0 2px rgba(200,155,60,1); }
+.text-glow-jade   { text-shadow: 0 0 8px rgba(77,168,122,0.8); }
+.text-glow-danger { text-shadow: 0 0 8px rgba(224,64,64,0.8); }
+
+.screen-title {
+  /* Keep Press Start 2P for screen titles — these are always ASCII/English UI chrome */
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bronze);
+  text-shadow: 2px 2px 0px rgba(0,0,0,0.7);
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--bronze);
+  margin-bottom: 1rem;
+}
+
+/* ── Pixel segmented progress bar ── */
+.px-bar-track {
+  height: 10px;
+  background: #060a0e;
+  border: 2px solid var(--line);
+  overflow: hidden;
+  position: relative;
+}
+.px-bar-fill {
+  height: 100%;
+  transition: width 0.3s steps(10);
+}
+.px-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 6px,
+    rgba(0,0,0,0.3) 6px,
+    rgba(0,0,0,0.3) 8px
+  );
+}
+
+/* ── Pixel table ── */
+table { border-collapse: collapse; }
+td, th { border: 1px solid var(--line); }
+
+/* ── Selection ── */
+::selection { background: var(--bronze); color: #1a100a; }
+
+/* ── Focus ring ── */
+:focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   .rise-in, .pulse-soft, .gild-flash, .cover-zoom { animation: none; }
   * { transition-duration: 0.01ms !important; }
 }
-
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #22384a; border-radius: 6px; }
-::-webkit-scrollbar-track { background: transparent; }

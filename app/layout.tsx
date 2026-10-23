@@ -1,9 +1,30 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Inter } from "next/font/google";
+import { Press_Start_2P, VT323, Chakra_Petch, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 
-const serif = Cormorant_Garamond({ subsets: ["vietnamese", "latin"], weight: ["500", "600", "700"], variable: "--font-serif" });
-const sans = Inter({ subsets: ["vietnamese", "latin"], variable: "--font-sans" });
+// Press Start 2P: Pure 8-bit arcade headers (ASCII/English chrome)
+const pixel = Press_Start_2P({ subsets: ["latin"], weight: ["400"], variable: "--font-pixel" });
+
+// VT323: Authentic retro pixel terminal font with native Vietnamese subset
+const vt323Font = VT323({
+  subsets: ["vietnamese", "latin", "latin-ext"],
+  weight: "400",
+  variable: "--font-vt323",
+});
+
+// Chakra Petch: Geometric retro/arcade techno font with native Vietnamese subset
+const chakraFont = Chakra_Petch({
+  subsets: ["vietnamese", "latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-chakra",
+});
+
+// Be Vietnam Pro: Native Vietnamese font designed specifically for Vietnamese typography
+const vietnamFont = Be_Vietnam_Pro({
+  subsets: ["vietnamese", "latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-vietnam",
+});
 
 export const metadata: Metadata = {
   title: "Relic Capital",
@@ -12,7 +33,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${serif.variable} ${sans.variable}`}>
+    <html
+      lang="en"
+      className={`${pixel.variable} ${vt323Font.variable} ${chakraFont.variable} ${vietnamFont.variable}`}
+    >
       <body>{children}</body>
     </html>
   );

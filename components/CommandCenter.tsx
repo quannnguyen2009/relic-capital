@@ -5,6 +5,8 @@ import { fmt, runwayDays } from "@/game/engine/core";
 import { GRANTS, CAMPAIGN } from "@/game/data/systems";
 import { SITES } from "@/game/data/world";
 
+
+
 export default function CommandCenter() {
   const g = useGame();
   const s = g.s;
@@ -35,8 +37,8 @@ export default function CommandCenter() {
           {activeChapter.objectives.map((o) => {
             const done = s.completedObjectives.includes(o.id);
             return (
-              <div key={o.id} className={`p-2.5 border rounded text-xs ${done ? "border-[#6D9A83] text-[#6D9A83]" : "hairline text-[#A2B0B2]"}`}>
-                {done ? "✓" : "○"} {o.text}
+              <div key={o.id} className={`p-2.5 border-2 text-xs flex items-center gap-1 ${done ? "border-[#4da87a] text-[#4da87a]" : "border-[rgba(232,216,176,0.14)] text-[#8a9ea8]"}`} style={{ boxShadow: done ? "2px 2px 0px #1a4a2c" : "2px 2px 0px rgba(0,0,0,0.6)", fontFamily: "var(--font-vt323)" }}>
+                <span style={{ color: done ? "#4da87a" : "#8a9ea8", fontSize: "1rem" }}>{done ? "[X]" : "[ ]"}</span> {o.text}
               </div>
             );
           })}
@@ -100,7 +102,8 @@ export default function CommandCenter() {
               {recent.map((a) => (
                 <li key={a.uid} className="py-2 flex items-center justify-between gap-3">
                   <div>
-                    <button className="font-display text-sm hover:text-[#C28B49]" onClick={() => g.setScreen("archive")}>{a.uid} · {a.name}</button>
+                    <button className="text-sm hover:text-[#c89b3c]" style={{ fontFamily: 'var(--font-vt323)' }} onClick={() => g.setScreen("archive")}>{a.uid} · {a.name}</button>
+
                     <div className="text-[0.7rem] text-[#A2B0B2]">{a.category} · sig {a.significance}/10 · {a.condition}</div>
                   </div>
                   <button className="btn btn-ghost !py-0.5 !px-2 !text-[0.7rem]" onClick={() => g.setScreen("lab")}>Analyze</button>

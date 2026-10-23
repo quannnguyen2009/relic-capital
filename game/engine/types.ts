@@ -124,6 +124,14 @@ export interface PlayerArtifact {
   acquiredDay: number;
   accessibility: number; // 0-1 documented + published accessibility
   image?: string;
+  /** Tracks which ops have been run (for diminishing returns) */
+  opsRun?: Partial<Record<string, number>>;
+  /** Day the artifact was last conserved (treated/stabilized) */
+  lastConservationDay?: number;
+  /** True when a rival institute has publicly disputed this finding */
+  rivalClaim?: boolean;
+  /** Bonus confidence from assemblage coherence (same site, same era) */
+  assemblageBonus?: number;
 }
 
 export interface ArtifactHypothesis {
@@ -154,6 +162,8 @@ export interface StaffMember {
   hiredDay: number;
   energy: number; // 0-100
   moraleAtHire: number;
+  /** Days on the team; every 30 days grants +1 effective skill (capped at 5) */
+  seniorityDays?: number;
 }
 
 // ── Equipment ────────────────────────────────────────────────────────────────
@@ -396,9 +406,21 @@ export interface DifficultyDef {
   name: string;
   desc: string;
   startingCash: number;
+  startingResearch: number;
+  startingSupplies: number;
   opExpensePerDay: number; // base daily operating expense
   eventRisk: number; // multiplier on bad outcomes
   grantSeverity: number; // multiplier on grant scoring thresholds
+}
+
+// ── Rival claims ────────────────────────────────────────────────────────────
+export interface RivalClaim {
+  artifactUid: string;
+  rivalName: string; // name of the rival institute
+  day: number;
+  challengeText: string;
+  /** resolved: "defended" | "conceded" | null = still active */
+  resolved: "defended" | "conceded" | null;
 }
 
 // ── Campaign ─────────────────────────────────────────────────────────────────
@@ -466,6 +488,11 @@ export interface GameState {
   campaignChapter: number; // 0-based index of active chapter
   campaignCompleted: boolean;
   activeExhibition?: MuseumExhibition | null;
+
+  /** Active rival institute claim disputes */
+  rivalClaims: RivalClaim[];
+  /** Discovery streak counter: days since last artifact find (during active expedition) */
+  discoveryStreak: number;
 }
 
 export interface MuseumExhibition {

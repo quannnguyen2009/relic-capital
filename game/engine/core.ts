@@ -86,11 +86,45 @@ export function advanceDay(s: GameState): { insolvency: boolean } {
   const diff = 70 - s.morale;
   if (Math.abs(diff) > 8) s.morale += Math.sign(diff);
 
-  // research growth from knowledge
-  if (s.resources.knowledge > 20 && s.resources.research < 60) {
-    s.resources.research += 1;
-    s.resources.knowledge -= 5;
+  // Passive research trickle: team study time (+3/day; +5 in story mode)
+  const studyGain = s.difficulty === "story" ? 5 : s.difficulty === "expert" ? 2 : 3;
+  s.resources.research = Math.min(200, s.resources.research + studyGain);
+
+  // knowledge → research conversion (lower threshold so post-expedition knowledge converts faster)
+  if (s.resources.knowledge > 10 && s.resources.research < 120) {
+    s.resources.research += 2;
+    s.resources.knowledge -= 4;
   }
+
+  // Staff seniority growth: every 30 days on team, a staff member's seniorityDays ticks up.
+  // At multiples of 30, announce a skill milestone in the journal.
+  for (const m of s.staff) {
+    const prev = m.seniorityDays ?? 0;
+    m.seniorityDays = prev + 1;
+    if (m.seniorityDays > 0 && m.seniorityDays % 30 === 0 && m.skill < 5) {
+      m.skill = Math.min(5, m.skill + 1);
+      s.journal.push({ day: s.day, kind: "progress", entry: `${m.name} (${m.roleId}) has grown in expertise — skill now ${m.skill}/5 after ${m.seniorityDays} days on the team.` });
+    }
+  }
+
+  // Daily artifact degradation for fragile/poor artifacts without recent conservation.
+  // Condition itself does not worsen daily, but confidence slowly bleeds.
+  for (const a of s.artifacts) {
+    if (a.status === "published") continue; // published findings are stable records
+    if (a.condition === "fragile" || a.condition === "poor") {
+      const daysSinceConservation = s.day - (a.lastConservationDay ?? a.acquiredDay);
+      if (daysSinceConservation > 10) {
+        a.confidence = clamp(a.confidence - 0.005, 0.05, 1);
+        if (daysSinceConservation % 15 === 0) {
+          a.researchLog.push({ day: s.day, entry: `Conservation alert: without active treatment, ${a.name} is deteriorating. Confidence is degrading.` });
+        }
+      }
+    }
+  }
+
+  // Assemblage coherence check: if 2+ verified artifacts share the same siteId + trueEra,
+  // grant a coherence bonus (+0.05 confidence) to all of them once per pair-discovery.
+  evaluateAssemblageCoherence(s);
 
   const runway = runwayDays(s);
   return { insolvency: runway !== null && runway <= 0 };
@@ -103,6 +137,33 @@ export function runwayDays(s: GameState): number | null {
   const perDay = net / days;
   if (perDay >= 0) return null;
   return Math.floor(s.resources.cash / Math.abs(perDay));
+}
+
+/** Assemblage coherence: when 2+ verified artifacts share the same siteId + trueEra,
+ * grant all of them a one-time confidence boost and log it. */
+export function evaluateAssemblageCoherence(s: GameState) {
+  // Group verified/robust artifacts by site+era
+  const verified = s.artifacts.filter((a) => a.confidenceLabel === "verified" || a.confidenceLabel === "robust");
+  type GroupKey = string;
+  const groups = new Map<GroupKey, typeof s.artifacts>();
+  for (const a of verified) {
+    const key = `${a.siteId}|${a.trueEra}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(a);
+  }
+  Array.from(groups.values()).forEach((members) => {
+    if (members.length < 2) return;
+    for (const a of members) {
+      const alreadyBonused = (a.assemblageBonus ?? 0) >= members.length - 1;
+      if (!alreadyBonused) {
+        const bonus = 0.04;
+        a.confidence = clamp(a.confidence + bonus, 0, 0.96);
+        a.assemblageBonus = (a.assemblageBonus ?? 0) + 1;
+        a.researchLog.push({ day: s.day, entry: `Assemblage coherence: ${members.length} co-excavated artifacts from the same context confirm each other. Confidence +${Math.round(bonus * 100)}%.` });
+        s.journal.push({ day: s.day, kind: "progress", entry: `Assemblage coherence bonus applied to ${a.name} — ${members.length} finds from the same site-era context strengthen each other.` });
+      }
+    }
+  });
 }
 
 // ── Artifact generation ──────────────────────────────────────────────────────
@@ -218,8 +279,8 @@ export function equipmentValue(s: GameState, key: keyof NonNullable<EquipmentDef
 // ── Expedition planning ──────────────────────────────────────────────────────
 export function expeditionQuality(s: GameState, e: Expedition): number {
   const site = SITES.find((x) => x.id === e.plan.siteId)!;
-  let q = 0.3;
-  q += site.dataQuality / 40;
+  let q = 0.35; // Raised from 0.3: even bare-bones digs produce meaningful results
+  q += site.dataQuality / 36;
   q += (e.plan.workers - 2) * 0.04;
   q += equipmentValue(s, "surveyQuality") * 0.4;
   q += equipmentValue(s, "documentationQuality") * 0.3;
@@ -229,7 +290,7 @@ export function expeditionQuality(s: GameState, e: Expedition): number {
   if (s.techResearched.includes("stratigraphic-control")) q += 0.08;
   const fieldStaff = s.staff.filter((m) => m.roleId === "field").length;
   q += fieldStaff * 0.06;
-  return clamp(q, 0.05, 1);
+  return clamp(q, 0.1, 1);
 }
 
 export function estimateExpedition(s: GameState, plan: ExpeditionPlan): { cost: number; supplies: number; days: number; energy: number; warnings: string[] } {
@@ -321,8 +382,9 @@ export function advanceExpeditionDay(s: GameState): { done: boolean; discovered:
   const discovered: PlayerArtifact[] = [];
 
   const quality = expeditionQuality(s, e);
-  const baseChance = 0.28 * (e.plan.objective === "intensive" ? 1.5 : e.plan.objective === "survey" ? 0.6 : 1) * (0.6 + quality + (e.discoveryBoost ?? 0));
-  if (rng.chance(clamp(baseChance, 0.05, 0.9)) && s.resources.supplies > 0) {
+  // Raised base chance from 0.28 → 0.33: ensures beginners reliably find things
+  const baseChance = 0.33 * (e.plan.objective === "intensive" ? 1.5 : e.plan.objective === "survey" ? 0.65 : 1) * (0.6 + quality + (e.discoveryBoost ?? 0));
+  if (rng.chance(clamp(baseChance, 0.08, 0.92)) && s.resources.supplies > 0) {
     const tpl = pickTemplate(s, site, rng);
     if (tpl) {
       const condBias = (e.plan.careful ? 0.15 : -0.1) + (equipmentValue(s, "damageReduction") > 0 ? 0.15 : 0);
@@ -332,27 +394,21 @@ export function advanceExpeditionDay(s: GameState): { done: boolean; discovered:
       discovered.push(art);
       e.eventLog.push({ day: s.day, text: `Discovery: ${art.name} (${art.category}, condition ${art.condition}).`, kind: "good" });
       s.journal.push({ day: s.day, kind: "discovery", entry: `Recovered ${art.name} at ${site.name}. Significance ${art.significance}/10.` });
-      s.resources.knowledge += 2;
+      s.resources.knowledge += 3;
     }
   }
 
-  // mid-expedition field decision
+  // mid-expedition field decisions — rotated by elapsed day bucket and site type
   const decisionDay = Math.max(2, Math.floor(e.totalDays / 2));
   if (!e.pendingDecision && !e.tutorialDecisionDone && e.elapsedDays === decisionDay && !e.discoveryBoost) {
-    e.pendingDecision = {
-      id: "mid-stop",
-      prompt: "A promising sounding suggests a richer layer deeper down. Follow it (better finds, more days and cost), stay on plan, or pause to analyze finds so far?",
-      options: [
-        { id: "follow", label: "Follow the sounding (−2 days, +discovery odds, 3,000đ)", costCash: 3000, effectText: "+discovery odds, −2 remaining days" },
-        { id: "stay", label: "Stick to the plan", effectText: "steady progress" },
-        { id: "stop-analyze", label: "Pause and analyze finds (−3 days, +evidence quality, 5,000đ)", costCash: 5000, effectText: "+evidence quality on finds so far" },
-      ],
-    };
+    // Pick decision variant based on site risk level
+    const decisionVariant = pickExpeditionDecision(site.risk, e.discoveries.length);
+    e.pendingDecision = decisionVariant;
     e.eventLog.push({ day: s.day, text: "Field decision required: mid-expedition choice.", kind: "decision" });
   }
 
-  // field mishap
-  const riskP = (site.risk / 5) * 0.12 * DIFFICULTIES[s.difficulty].eventRisk * (1 - equipmentValue(s, "damageReduction") * 0.5);
+  // field mishap — reduced base risk so early game feels less punishing
+  const riskP = (site.risk / 5) * 0.08 * DIFFICULTIES[s.difficulty].eventRisk * (1 - equipmentValue(s, "damageReduction") * 0.5);
   if (rng.chance(riskP)) {
     e.eventLog.push({ day: s.day, text: "Field incident: a section slumps — some context integrity lost.", kind: "bad" });
     if (e.discoveries.length) {
@@ -372,6 +428,124 @@ export function advanceExpeditionDay(s: GameState): { done: boolean; discovered:
   return { done, discovered };
 }
 
+// ── Rival claim resolution ────────────────────────────────────────────────────
+export function spawnRivalClaim(s: GameState, artifactUid: string) {
+  const RIVAL_INSTITUTES = [
+    "Northern Archaeological Institute",
+    "Hanoi University Research Centre",
+    "Southeast Asian Heritage Consortium",
+    "Mekong Archaeology Foundation",
+    "Pacific Rim Antiquities Bureau",
+  ];
+  const rival = RIVAL_INSTITUTES[Math.floor(Math.random() * RIVAL_INSTITUTES.length)];
+  const a = s.artifacts.find((x) => x.uid === artifactUid);
+  if (!a) return;
+  a.rivalClaim = true;
+  s.rivalClaims.push({
+    artifactUid,
+    rivalName: rival,
+    day: s.day,
+    challengeText: `${rival} has published a counter-attribution for ${a.name}, claiming a different period assignment. Your evidence must now withstand public scrutiny.`,
+    resolved: null,
+  });
+  s.journal.push({ day: s.day, kind: "event", entry: `RIVAL CLAIM: ${rival} disputes your attribution of ${a.name}. Respond in the Lab.` });
+}
+
+export function resolveRivalClaim(s: GameState, artifactUid: string, defend: boolean): { ok: boolean; result: string } {
+  const claim = s.rivalClaims.find((c) => c.artifactUid === artifactUid && c.resolved === null);
+  if (!claim) return { ok: false, result: "No active rival claim for this artifact." };
+  const a = s.artifacts.find((x) => x.uid === artifactUid);
+  if (!a) return { ok: false, result: "Artifact not found." };
+  if (defend) {
+    // Defending costs research; success depends on confidence level
+    const cost = 20;
+    if (s.resources.research < cost) return { ok: false, result: `Defense requires ${cost} research points.` };
+    s.resources.research -= cost;
+    const success = a.confidence >= 0.7;
+    if (success) {
+      claim.resolved = "defended";
+      a.rivalClaim = false;
+      s.resources.reputation += 4;
+      s.morale = clamp(s.morale + 8, 10, 100);
+      a.researchLog.push({ day: s.day, entry: `Rival claim from ${claim.rivalName} successfully defended. Reputation +4.` });
+      s.journal.push({ day: s.day, kind: "progress", entry: `Rival claim successfully defended against ${claim.rivalName} — reputation +4, morale up.` });
+      return { ok: true, result: `Defense upheld! Your evidence convinced the academic community. ${claim.rivalName} has withdrawn the challenge. +4 reputation.` };
+    } else {
+      claim.resolved = "conceded";
+      a.rivalClaim = false;
+      a.confidence = clamp(a.confidence - 0.12, 0.05, 1);
+      s.resources.reputation = Math.max(0, s.resources.reputation - 2);
+      s.morale = clamp(s.morale - 6, 10, 100);
+      a.researchLog.push({ day: s.day, entry: `Defense against ${claim.rivalName} failed — evidence too thin. Run more analyses before next publication.` });
+      s.journal.push({ day: s.day, kind: "event", entry: `Rival claim by ${claim.rivalName} succeeded — attribution contested. Confidence reduced.` });
+      return { ok: true, result: `Defense failed. Your evidence was insufficient — confidence reduced, reputation −2. Build stronger evidence before publishing again.` };
+    }
+  } else {
+    // Concede gracefully: small reputation hit, but saves research points
+    claim.resolved = "conceded";
+    a.rivalClaim = false;
+    a.confidence = clamp(a.confidence - 0.06, 0.05, 1);
+    s.resources.reputation = Math.max(0, s.resources.reputation - 1);
+    a.researchLog.push({ day: s.day, entry: `Conceded rival claim from ${claim.rivalName}. Attribution downgraded.` });
+    s.journal.push({ day: s.day, kind: "event", entry: `Conceded ${claim.rivalName}'s challenge on ${a.name}. Modest reputation cost.` });
+    return { ok: true, result: `Conceded. Reputation −1, confidence slightly reduced. The academic community appreciates your honesty.` };
+  }
+}
+
+// ── Expedition decision picking ─────────────────────────────────────────────────────
+/** Picks one of four expedition decision scenarios based on site risk & finds so far. */
+function pickExpeditionDecision(risk: number, discoveryCount: number): NonNullable<Expedition["pendingDecision"]> {
+  // Decision variant 0: sounding (standard, any risk)
+  const d0 = {
+    id: "mid-stop",
+    prompt: "A promising geophysical sounding shows a denser material signature 40cm deeper — a potential cache. Follow it (better finds, more days and cost), stay on plan, or pause to document the finds so far?",
+    options: [
+      { id: "follow", label: "Follow the sounding (+discovery odds, 2,000đ)", costCash: 2000, effectText: "+discovery odds, +2 total days" },
+      { id: "stay", label: "Stick to the plan — no extra cost", effectText: "Steady progress." },
+      { id: "stop-analyze", label: "Pause to improve evidence on finds (3,000đ)", costCash: 3000, effectText: "+evidence quality on finds so far" },
+    ],
+  };
+
+  // Decision variant 1: burial chamber discovery (high risk sites, or when finds already made)
+  const d1 = {
+    id: "burial-access",
+    prompt: "The team has exposed what appears to be an undisturbed burial deposit. Access requires negotiating with local heritage authorities (slow, safe), forcing entry (fast, damaging, reputation risk), or sealing it and reporting the discovery.",
+    options: [
+      { id: "negotiate-entry", label: "Negotiate official access (+4 days, +rep)", effectText: "+4 total days, +2 reputation, high-quality finds preserved" },
+      { id: "force-open", label: "Cautious but unauthorized opening (reputation risk)", effectText: "Immediate access, but risk −2 reputation if discovery is significant" },
+      { id: "seal-report", label: "Seal and formally report the burial", effectText: "+5 reputation, artifact deferred to a future expedition" },
+    ],
+  };
+
+  // Decision variant 2: community negotiation (medium-risk or highland sites)
+  const d2 = {
+    id: "community-dispute",
+    prompt: "Local community elders request a meeting: they have oral histories that may enrich site interpretation, but request a community liaison fee and sharing agreement.",
+    options: [
+      { id: "community-bridge", label: "Establish a community partnership (4,000đ)", costCash: 4000, effectText: "+contextual evidence, +1 reputation, +morale" },
+      { id: "polite-decline", label: "Politely decline, proceed independently", effectText: "No benefit or cost, but a missed interpretive opportunity" },
+      { id: "consult-historian", label: "Send historian to document oral histories (if staffed)", effectText: "+evidence if historian on staff, no cost" },
+    ],
+  };
+
+  // Decision variant 3: structural crisis (very high risk sites)
+  const d3 = {
+    id: "cave-in",
+    prompt: "A trench wall shows sudden cracking. The section may collapse without immediate shoring, potentially damaging exposed finds or injuring the team.",
+    options: [
+      { id: "shore-up-continue", label: "Shore up walls and continue carefully (5,000đ, +1 day)", costCash: 5000, effectText: "+damage protection, +1 day, team safe" },
+      { id: "emergency-extract", label: "Emergency-extract all finds and halt digging", effectText: "Ends expedition early but saves all current finds. No cost." },
+      { id: "push-risk", label: "Push through at team risk", effectText: "50% chance of completing the dig; 50% chance of damage and injury (morale −10)" },
+    ],
+  };
+
+  // Choose variant: high-risk sites favor the cave-in; burial chamber if finds already made; community if medium risk
+  if (risk >= 5) return d3;
+  if (discoveryCount >= 2 && risk >= 3) return d1;
+  if (risk >= 3) return d2;
+  return d0;
+}
+
 export function resolveExpeditionDecision(s: GameState, optionId: string): { ok: boolean; text?: string } {
   const e = s.expedition;
   if (!e || !e.pendingDecision) return { ok: false };
@@ -384,6 +558,8 @@ export function resolveExpeditionDecision(s: GameState, optionId: string): { ok:
     e.spent += opt.costCash;
   }
   let text = opt.effectText;
+
+  // ── Original sounding decision handlers
   if (optionId === "follow") {
     e.totalDays += 2;
     e.discoveryBoost = 0.35;
@@ -396,7 +572,77 @@ export function resolveExpeditionDecision(s: GameState, optionId: string): { ok:
       if (a) for (const ev of a.evidences) ev.support = clamp(ev.support + 0.08, 0, 0.95);
     }
     text = "Careful lab tape analysis improves evidence quality of finds so far.";
+
+  // ── Burial chamber handlers
+  } else if (optionId === "negotiate-entry") {
+    e.totalDays += 4;
+    e.discoveryBoost = 0.25;
+    s.resources.reputation += 2;
+    text = "Official access granted after 4 days of negotiation. High-quality finds await in the burial deposit. +2 reputation.";
+  } else if (optionId === "force-open") {
+    e.discoveryBoost = 0.4;
+    // Reputation risk: significant find = reputation penalty
+    if (e.discoveries.length > 0) {
+      s.resources.reputation = Math.max(0, s.resources.reputation - 2);
+      text = "Access gained quickly, but the unauthorized opening attracted criticism. Discovery odds up, reputation −2.";
+    } else {
+      text = "Access gained quickly. No significant finds yet to trigger scrutiny.";
+    }
+  } else if (optionId === "seal-report") {
+    s.resources.reputation += 5;
+    s.morale = clamp(s.morale + 5, 10, 100);
+    text = "Burial formally reported to authorities. +5 reputation, team morale up. The deposit will be accessible on a future expedition.";
+
+  // ── Community negotiation handlers
+  } else if (optionId === "community-bridge") {
+    const hasHistorian = s.staff.some((m) => m.roleId === "historian");
+    const bonusRep = hasHistorian ? 2 : 1;
+    s.resources.reputation += bonusRep;
+    s.morale = clamp(s.morale + 5, 10, 100);
+    for (const uid of e.discoveries) {
+      const a = s.artifacts.find((x) => x.uid === uid);
+      if (a) a.evidences.push({ id: `e-comm-${a.evidences.length}`, kind: "contextual", label: "Community oral history", detail: "Local knowledge enriched site interpretation.", support: 0.3 });
+    }
+    text = `Community partnership established. Oral histories added as contextual evidence. Morale up, +${bonusRep} reputation.${hasHistorian ? " (Historian on staff doubles the benefit.)" : ""}`;
+  } else if (optionId === "polite-decline") {
+    text = "Politely declined. Dig continues on scientific record only.";
+  } else if (optionId === "consult-historian") {
+    const hasHistorian = s.staff.some((m) => m.roleId === "historian");
+    if (hasHistorian) {
+      s.resources.reputation += 2;
+      for (const uid of e.discoveries) {
+        const a = s.artifacts.find((x) => x.uid === uid);
+        if (a) a.evidences.push({ id: `e-oral-${a.evidences.length}`, kind: "contextual", label: "Historian oral documentation", detail: "Oral traditions cross-referenced with material evidence.", support: 0.4 });
+      }
+      text = "Historian documented oral histories alongside finds. Strong contextual evidence added. +2 reputation.";
+    } else {
+      text = "No historian on staff — consultation limited to field notes. Consider hiring one.";
+    }
+
+  // ── Cave-in handlers
+  } else if (optionId === "shore-up-continue") {
+    e.totalDays += 1;
+    text = "Walls shored up. Team safe, dig continues with improved structural control.";
+  } else if (optionId === "emergency-extract") {
+    // End the expedition early but preserve everything found so far
+    e.totalDays = e.elapsedDays; // ends next tick
+    text = "Emergency extraction complete. All current finds safely recovered. Expedition concludes early.";
+    e.eventLog.push({ day: s.day, text: "Emergency extraction: expedition ends safely with all finds secured.", kind: "info" });
+  } else if (optionId === "push-risk") {
+    const rng = rngFor(s.seed, `push-${e.id}-${s.day}`);
+    if (rng.chance(0.5)) {
+      e.discoveryBoost = 0.45;
+      text = "Team pushed through the unstable section. No injuries. Excellent finds deeper in.";
+    } else {
+      s.morale = clamp(s.morale - 10, 10, 100);
+      if (e.discoveries.length > 0) {
+        const last = s.artifacts.find((x) => x.uid === e.discoveries[e.discoveries.length - 1]);
+        if (last) last.condition = degrade(last.condition);
+      }
+      text = "Partial wall collapse. Team shaken (morale −10). Most recent find damaged.";
+    }
   }
+
   if (s.expedition) (s.expedition as Expedition & { tutorialDecisionDone?: boolean }).tutorialDecisionDone = true;
   e.eventLog.push({ day: s.day, text: `Decision: ${opt.label} — ${text}`, kind: "info" });
   e.pendingDecision = undefined;
@@ -409,13 +655,12 @@ export function resolveExpedition(s: GameState) {
   const q = expeditionQuality(s, e);
   const rng = rngFor(s.seed, `expdone-${e.id}`);
 
-  // Guarantee the guided tutorial teaches research: a disciplined, careful, surveyed dig
-  // always recovers at least one find at completion. The most expensive option is not
-  // automatically better — quality and objectives still dominate yields.
-  if (e.discoveries.length === 0 && q >= 0.5 && e.plan.careful) {
+  // Guarantee at least 1 find per expedition (not just careful digs)
+  // so the first expedition always has a "loot reveal" moment.
+  if (e.discoveries.length === 0) {
     const tpl = pickTemplate(s, site, rng);
     if (tpl) {
-      const art = makeArtifact(s, tpl, site, q, rng, e.plan.careful ? 0.1 : -0.05);
+      const art = makeArtifact(s, tpl, site, Math.max(q, 0.4), rng, e.plan.careful ? 0.1 : -0.05);
       s.artifacts.push(art);
       e.discoveries.push(art.uid);
       s.journal.push({ day: s.day, kind: "discovery", entry: `Completion screening recovered ${art.name} at ${site.name}.` });
@@ -423,15 +668,8 @@ export function resolveExpedition(s: GameState) {
     }
   }
 
-  const rep = Math.round(1 + q * 4 + e.discoveries.length * 1.2);
-  s.resources.reputation += rep;
-  s.resources.knowledge += 4 + Math.round(q * 6);
-  s.resources.research += 12 + Math.round(q * 8);
-
-  const success = e.discoveries.length > 0 || q > 0.55;
-  s.morale = clamp(s.morale + (success ? 6 : -8), 10, 100);
-
-  if (rng.chance(q * 0.35)) {
+  // Bonus find chance (scales with quality and find mode)
+  if (rng.chance(q * 0.4)) {
     const tpl = pickTemplate(s, site, rng);
     if (tpl) {
       const art = makeArtifact(s, tpl, site, q, rng, e.plan.careful ? 0.1 : -0.05);
@@ -440,6 +678,16 @@ export function resolveExpedition(s: GameState) {
       s.journal.push({ day: s.day, kind: "discovery", entry: `Final-day find at ${site.name}: ${art.name}.` });
     }
   }
+
+  // Reputation: meaningful reward even for small digs
+  const rep = Math.round(2 + q * 5 + e.discoveries.length * 1.5);
+  s.resources.reputation += rep;
+  // Research/knowledge payout: generous so players can immediately lab their finds
+  s.resources.knowledge += 6 + Math.round(q * 8);
+  s.resources.research = Math.min(200, s.resources.research + 18 + Math.round(q * 12));
+
+  const success = e.discoveries.length > 0 || q > 0.5;
+  s.morale = clamp(s.morale + (success ? 8 : -5), 10, 100);
 
   let perCat = "No significant finds this time — the trench is backfilled and the record stands.";
   if (e.discoveries.length) {
@@ -486,6 +734,11 @@ export function evaluateCampaign(s: GameState): { advanced: boolean; completed: 
     "o3-two-regions": (g) => Number(g.flags.regionsExplored ?? 0) >= 3,
     "o3-publish": (g) => g.artifacts.filter((a) => a.status === "published").length >= 5,
     "o3-cash": (g) => g.resources.cash >= 250000,
+    // Chapter IV objectives
+    "o4-published10": (g) => g.artifacts.filter((a) => a.status === "published").length >= 10,
+    "o4-defended": (g) => (g.rivalClaims ?? []).some((c) => c.resolved === "defended"),
+    "o4-endowment": (g) => g.resources.cash >= 500000,
+    "o4-all-regions": (g) => g.regionUnlocked.length >= 5,
   };
 
   let newlyDone = false;

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useGame } from "@/game/store";
 import type { Difficulty } from "@/game/engine/types";
 import { DIFFICULTIES } from "@/game/data/systems";
+import { IconCheck } from "./PixelIcons";
 
 export default function StartScreen({ hasSave, onContinue, onBack }: { hasSave: boolean; onContinue: () => void; onBack?: () => void }) {
   const game = useGame();
@@ -11,39 +12,78 @@ export default function StartScreen({ hasSave, onContinue, onBack }: { hasSave: 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-6">
       <div
-        className="absolute inset-0 opacity-[0.18] bg-cover bg-center"
-        style={{ backgroundImage: "url(/assets/sites/coloas.jpg)" }}
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: "url(/assets/sites/coloas.jpg)", opacity: 0.1, imageRendering: "pixelated" }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#09131B]/60 via-[#09131B]/85 to-[#09131B]" />
+      {/* Pixel scanlines */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: "repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(0,0,0,0.15) 3px, rgba(0,0,0,0.15) 6px)",
+          zIndex: 1,
+        }}
+      />
+      <div className="absolute inset-0" style={{ background: "rgba(10,14,20,0.85)", zIndex: 0 }} />
+
       {onBack && (
-        <button className="absolute top-4 left-4 btn btn-ghost !text-xs z-10" onClick={onBack}>
-          ← Back to title
+        <button className="absolute top-4 left-4 btn btn-ghost z-10" style={{ fontSize: "0.5rem" }} onClick={onBack}>
+          ◄ BACK
         </button>
       )}
-      <div className="relative panel-elevated max-w-xl w-full p-8 rise-in">
-        <p className="tag border-[#C28B49] text-[#C28B49] mb-4">A strategy game of Vietnamese archaeology, research and finance</p>
-        <h1 className="font-display text-4xl md:text-5xl mb-3 leading-tight">Relic Capital</h1>
-        <p className="text-[#A2B0B2] text-sm mb-6">
-          Direct an independent research institute. Choose sites, plan expeditions, verify AI-generated
-          hypotheses, and keep the books alive. <em>Every excavation is an investment, every discovery is a
-          hypothesis.</em> All money, markets and instruments are fictional in-game models — this game is
-          neither an antiquities market nor investment advice.
+
+      <div className="relative panel-elevated max-w-xl w-full p-8 rise-in" style={{ zIndex: 2 }}>
+        {/* Pixel header decoration */}
+        <div className="flex items-center gap-2 mb-4">
+          <div style={{ width: 12, height: 12, background: "var(--bronze)" }} />
+          <div style={{ flex: 1, height: 2, background: "var(--bronze)" }} />
+          <div style={{ width: 4, height: 4, background: "var(--bronze)" }} />
+        </div>
+
+        <p className="tag border-[#c89b3c] text-[#c89b3c] mb-4" style={{ fontFamily: "var(--font-pixel)", fontSize: "0.4rem" }}>
+          VIETNAMESE ARCHAEOLOGY · RESEARCH · FINANCE
+        </p>
+        <h1
+          className="mb-3 text-glow-bronze"
+          style={{ fontFamily: "var(--font-pixel)", fontSize: "1.1rem", lineHeight: 1.5, color: "#e8d8b0" }}
+        >
+          RELIC CAPITAL
+        </h1>
+        <p className="text-[#8a9ea8] text-sm mb-6" style={{ fontFamily: "var(--font-vt323)", fontSize: "1rem" }}>
+          DIRECT AN INDEPENDENT RESEARCH INSTITUTE. CHOOSE SITES, PLAN EXPEDITIONS, VERIFY
+          AI-GENERATED HYPOTHESES, AND KEEP THE BOOKS ALIVE.{" "}
+          <em>EVERY EXCAVATION IS AN INVESTMENT, EVERY DISCOVERY IS A HYPOTHESIS.</em>{" "}
+          ALL MONEY, MARKETS AND INSTRUMENTS ARE FICTIONAL IN-GAME MODELS.
         </p>
 
+        {/* Pixel divider */}
+        <div style={{ height: 2, background: "var(--line)", marginBottom: "1rem" }} />
+
         <div className="mb-5">
-          <div className="text-xs uppercase tracking-wider text-[#A2B0B2] mb-2">Difficulty</div>
+          <div className="text-[0.45rem] uppercase tracking-wider text-[#8a9ea8] mb-2" style={{ fontFamily: "var(--font-pixel)" }}>
+            ► SELECT DIFFICULTY
+          </div>
           <div className="grid grid-cols-3 gap-2">
             {Object.values(DIFFICULTIES).map((d) => (
               <button
                 key={d.id}
                 onClick={() => setDiff(d.id)}
-                className={`text-left p-3 rounded border transition-colors ${
-                  diff === d.id ? "border-[#C28B49] bg-[#172A33]" : "hairline hover:border-[#6D9A83]"
-                }`}
+                className="text-left p-3 border-2 transition-colors"
+                style={{
+                  borderColor: diff === d.id ? "var(--bronze)" : "rgba(232,216,176,0.14)",
+                  background: diff === d.id ? "var(--elevated)" : "var(--surface)",
+                  boxShadow: diff === d.id ? "3px 3px 0px #6b4a10" : "2px 2px 0px rgba(0,0,0,0.7)",
+                }}
               >
-                <div className="font-display text-base">{d.name}</div>
-                <div className="text-[0.7rem] text-[#A2B0B2] mt-1">{d.desc}</div>
-                <div className="num text-[0.7rem] text-[#6D9A83] mt-1">Start: {new Intl.NumberFormat("en-US").format(d.startingCash)} đ</div>
+                <div className="flex items-center gap-1 mb-1">
+                  {diff === d.id && <IconCheck size={10} />}
+                  <div className="font-display text-sm font-semibold tracking-wider" style={{ color: diff === d.id ? "#c89b3c" : "#e8d8b0" }}>
+                    {d.name.toUpperCase()}
+                  </div>
+                </div>
+                <div className="text-xs text-[#8a9ea8] mt-1 font-vt" style={{ fontSize: "0.85rem" }}>{d.desc}</div>
+                <div className="text-xs text-[#4da87a] mt-1 num font-semibold" style={{ fontSize: "0.85rem" }}>
+                  START: {new Intl.NumberFormat("en-US").format(d.startingCash)} đ
+                </div>
               </button>
             ))}
           </div>
@@ -51,17 +91,23 @@ export default function StartScreen({ hasSave, onContinue, onBack }: { hasSave: 
 
         <div className="flex flex-col sm:flex-row gap-2">
           <button className="btn btn-primary flex-1 justify-center" onClick={() => game.startNew(diff)}>
-            Begin your first expedition
+            ► BEGIN FIRST EXPEDITION
           </button>
           {hasSave && (
             <button className="btn btn-jade flex-1 justify-center" onClick={onContinue}>
-              Continue saved game
+              ► CONTINUE SAVED GAME
             </button>
           )}
         </div>
-        <p className="text-[0.65rem] text-[#A2B0B2] mt-4">
-          Progress saves automatically in your browser. The guided tutorial can be skipped and replayed from the Codex.
-        </p>
+
+        {/* Bottom pixel decoration */}
+        <div className="flex items-center gap-2 mt-4">
+          <div style={{ flex: 1, height: 2, background: "var(--line)" }} />
+          <p className="text-[0.4rem] text-[#8a9ea8]" style={{ fontFamily: "var(--font-pixel)" }}>
+            PROGRESS SAVES IN BROWSER
+          </p>
+          <div style={{ flex: 1, height: 2, background: "var(--line)" }} />
+        </div>
       </div>
     </div>
   );

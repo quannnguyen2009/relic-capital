@@ -13,8 +13,12 @@ export default function LabScreen() {
   const s = g.s!;
   const [selUid, setSelUid] = useState<string | null>(s.artifacts[s.artifacts.length - 1]?.uid ?? null);
   const [compareRef, setCompareRef] = useState(false);
+  const [rivalResult, setRivalResult] = useState<string | null>(null);
   const a = s.artifacts.find((x) => x.uid === selUid) ?? null;
   const recentReports = s.researchReports.slice(-3).reverse();
+
+  // Check for active rival claim on this artifact
+  const activeClaim = a ? (s.rivalClaims ?? []).find((c) => c.artifactUid === a.uid && c.resolved === null) : null;
 
   return (
     <div className="space-y-4">
@@ -25,15 +29,23 @@ export default function LabScreen() {
             <div className="text-xs uppercase tracking-wider text-[#A2B0B2] mb-2">Choose an artifact</div>
             <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1">
               {s.artifacts.length === 0 && <p className="text-sm text-[#A2B0B2]">Nothing to analyze yet.</p>}
-              {s.artifacts.map((x) => (
-                <button key={x.uid} onClick={() => setSelUid(x.uid)} className={`w-full text-left p-2 rounded border text-sm ${selUid === x.uid ? "border-[#C28B49]" : "hairline hover:border-[#6D9A83]"}`}>
-                  <div className="flex justify-between items-center">
-                    <span className="truncate">{x.uid} · {x.name}</span>
-                    <ConfidenceBadge c={x.confidenceLabel} />
-                  </div>
-                  <div className="text-[0.65rem] text-[#A2B0B2]">{x.category} · {x.evidences.length} evidence · {Math.round(x.confidence * 100)}% conf</div>
-                </button>
-              ))}
+              {s.artifacts.map((x) => {
+                const hasClaim = (s.rivalClaims ?? []).some((c) => c.artifactUid === x.uid && c.resolved === null);
+                const needsCons = (x.condition === "fragile" || x.condition === "poor") && (s.day - (x.lastConservationDay ?? x.acquiredDay)) > 10;
+                return (
+                  <button key={x.uid} onClick={() => { setSelUid(x.uid); setRivalResult(null); }} className={`w-full text-left p-2 rounded border text-sm ${selUid === x.uid ? "border-[#C28B49]" : "hairline hover:border-[#6D9A83]"}`}>
+                    <div className="flex justify-between items-center gap-1">
+                      <span className="truncate">{x.uid} · {x.name}</span>
+                      <div className="flex gap-1 items-center shrink-0">
+                        {hasClaim && <span className="tag border-[#e04040] text-[#e04040] !text-[0.5rem]">CLAIM</span>}
+                        {needsCons && <span className="tag border-[#c89b3c] text-[#c89b3c] !text-[0.5rem]">CONS.</span>}
+                        <ConfidenceBadge c={x.confidenceLabel} />
+                      </div>
+                    </div>
+                    <div className="text-[0.65rem] text-[#A2B0B2]">{x.category} · {x.evidences.length} evidence · {Math.round(x.confidence * 100)}% conf</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -45,23 +57,79 @@ export default function LabScreen() {
               <div className="panel-elevated p-4">
                 <div className="flex items-baseline justify-between">
                   <h3 className="font-display text-xl">{a.name} <span className="text-sm text-[#A2B0B2]">({a.uid})</span></h3>
-                  <ConfidenceBadge c={a.confidenceLabel} />
+                  <div className="flex gap-2 items-center">
+                    {(a.assemblageBonus ?? 0) > 0 && (
+                      <Tooltip text="This artifact has received an assemblage coherence bonus — it was co-verified alongside other artifacts from the same site-era context.">
+                        <span className="tag border-[#6D9A83] text-[#6D9A83] cursor-help">⬡ ASSEMBLAGE</span>
+                      </Tooltip>
+                    )}
+                    <ConfidenceBadge c={a.confidenceLabel} />
+                  </div>
                 </div>
                 <p className="text-xs text-[#A2B0B2] mb-3">{a.description}</p>
+
+                {/* Rival Claim Banner */}
+                {activeClaim && (
+                  <div className="mb-4 p-3 border-2 border-[#e04040] bg-[#1a0a0a] rounded space-y-2">
+                    <div className="flex items-center gap-2 text-[#e04040] font-bold text-xs">
+                      ⚠ RIVAL ATTRIBUTION CLAIM
+                    </div>
+                    <p className="text-xs text-[#D66D67]">{activeClaim.challengeText}</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <Tooltip text={`Defend requires 20 RP. Success if confidence ≥ 70%. Win = +4 reputation. Lose = confidence −12%, reputation −2.`}>
+                        <button
+                          className="btn btn-jade !text-xs"
+                          disabled={s.resources.research < 20}
+                          onClick={() => {
+                            const r = g.resolveRival(a.uid, true);
+                            setRivalResult(r.result);
+                          }}
+                        >
+                          🛡 Defend (20 RP)
+                        </button>
+                      </Tooltip>
+                      <Tooltip text="Concede the claim. Modest reputation cost (−1), no RP needed. Shows intellectual honesty.">
+                        <button
+                          className="btn btn-ghost !text-xs"
+                          onClick={() => {
+                            const r = g.resolveRival(a.uid, false);
+                            setRivalResult(r.result);
+                          }}
+                        >
+                          Concede claim
+                        </button>
+                      </Tooltip>
+                    </div>
+                    {rivalResult && <p className="text-xs text-[#c89b3c] border-t hairline pt-2 mt-1">{rivalResult}</p>}
+                  </div>
+                )}
+
+                {/* Conservation Warning */}
+                {(a.condition === "fragile" || a.condition === "poor") && !activeClaim && (
+                  <div className="mb-3 p-2 border border-[#c89b3c]/50 bg-[#1a1508] rounded text-xs text-[#c89b3c]">
+                    ⚠ This artifact is in <strong>{a.condition}</strong> condition.
+                    {(s.day - (a.lastConservationDay ?? a.acquiredDay)) > 10 && " Confidence is degrading — apply conservation treatment."}
+                  </div>
+                )}
 
                 <div className="grid sm:grid-cols-2 gap-2 mb-4">
                   {OPS.map((op) => {
                     const cost = RESEARCH_COSTS[op];
                     const disabled = op === "inscription" && a.category !== "inscription";
+                    const timesRun = (a.opsRun ?? {})[op] ?? 0;
+                    const dimLevel = timesRun >= 3 ? "heavy" : timesRun >= 2 ? "moderate" : timesRun >= 1 ? "slight" : null;
                     return (
-                      <Tooltip key={op} text={disabled ? "Only applies to inscription artifacts." : `Runs the ${RESEARCH_LABELS[op]} analysis. Evidence may be added; confidence can rise or fall.`}>
+                      <Tooltip key={op} text={disabled ? "Only applies to inscription artifacts." : `${RESEARCH_LABELS[op]} — ${timesRun > 0 ? `run ${timesRun}× before (${dimLevel} diminishing returns)` : "not yet run"}`}>
                         <button
-                          className="btn btn-ghost w-full justify-between !text-xs"
+                          className={`btn w-full justify-between !text-xs ${timesRun >= 2 ? "btn-ghost opacity-60" : "btn-ghost"}`}
                           disabled={disabled || s.resources.research < cost.research}
                           onClick={() => g.analyze(a.uid, op)}
                         >
                           <span>{RESEARCH_LABELS[op]}</span>
-                          <span className="num text-[#C28B49]">{cost.research} RP</span>
+                          <span className="num flex items-center gap-1">
+                            {timesRun > 0 && <span className="text-[0.55rem] text-[#A2B0B2]">×{timesRun}</span>}
+                            <span className="text-[#C28B49]">{cost.research} RP</span>
+                          </span>
                         </button>
                       </Tooltip>
                     );
@@ -74,7 +142,7 @@ export default function LabScreen() {
                       Verify evidence (18 RP)
                     </button>
                   </Tooltip>
-                  <Tooltip text="Pays đ and reputation. Needs ≥55% confidence and 10 RP.">
+                  <Tooltip text="Pays đ and reputation. Needs ≥55% confidence and 10 RP. High-significance publications may attract rival claims.">
                     <button className="btn btn-jade !text-xs" disabled={a.confidence < 0.55 || s.resources.research < 10} onClick={() => g.publish(a.uid)}>
                       Publish finding (10 RP)
                     </button>
@@ -84,6 +152,13 @@ export default function LabScreen() {
                       Digitize (4,000 đ)
                     </button>
                   </Tooltip>
+                  {(a.condition === "fragile" || a.condition === "poor") && (
+                    <Tooltip text="Conservation treatment: improves condition by one step, resets degradation timer. Costs 6,000đ.">
+                      <button className="btn btn-primary !text-xs" disabled={s.resources.cash < 6000} onClick={() => g.conserve(a.uid)}>
+                        🧪 Conserve (6,000 đ)
+                      </button>
+                    </Tooltip>
+                  )}
                   <button className="btn btn-primary !text-xs" onClick={() => setCompareRef(true)}>
                     🔬 Side-by-Side Typology Match
                   </button>
@@ -108,6 +183,18 @@ export default function LabScreen() {
                     </ul>
                   </div>
                 </div>
+
+                {/* Research log */}
+                {a.researchLog.length > 1 && (
+                  <div className="mt-4 border-t hairline pt-3">
+                    <div className="text-xs uppercase tracking-wider text-[#A2B0B2] mb-1">Research Log</div>
+                    <ul className="text-[0.65rem] text-[#8a9ea8] space-y-0.5 max-h-20 overflow-y-auto">
+                      {a.researchLog.slice(-5).reverse().map((entry, i) => (
+                        <li key={i}>D{entry.day}: {entry.entry}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -136,6 +223,25 @@ export default function LabScreen() {
                 {r.sources.length > 0 && <p className="text-[0.65rem] text-[#A2B0B2]/70 mt-1">Sources (local reference index): {r.sources.join("; ")}</p>}
               </div>
             ))}
+          </div>
+        </Panel>
+      )}
+
+      {/* Rival Claims History */}
+      {(s.rivalClaims ?? []).filter((c) => c.resolved !== null).length > 0 && (
+        <Panel title="Disputed Claims Record" sub="Academic disputes you have resolved">
+          <div className="space-y-2">
+            {(s.rivalClaims ?? []).filter((c) => c.resolved !== null).map((c, i) => {
+              const art = s.artifacts.find((x) => x.uid === c.artifactUid);
+              return (
+                <div key={i} className="text-xs flex items-center justify-between gap-2 border-b hairline pb-1">
+                  <span className="text-[#A2B0B2]">D{c.day} — {c.rivalName} vs. {art?.name ?? c.artifactUid}</span>
+                  <span className={c.resolved === "defended" ? "text-[#4da87a] font-bold" : "text-[#D66D67]"}>
+                    {c.resolved === "defended" ? "✓ DEFENDED" : "✕ CONCEDED"}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </Panel>
       )}

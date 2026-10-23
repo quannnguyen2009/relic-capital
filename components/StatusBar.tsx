@@ -4,6 +4,12 @@ import { useGame } from "@/game/store";
 import { runwayDays, fmt } from "@/game/engine/core";
 import { t } from "@/game/i18n";
 import { isMuted, toggleMute } from "@/game/sound";
+import {
+  IconSoundOn, IconSoundOff, IconFlagVN, IconFlagGB,
+  IconMuseum, IconSaveDot
+} from "./PixelIcons";
+
+
 
 const money = (n: number) => `${fmt(n)} đ`;
 
@@ -46,12 +52,14 @@ export default function StatusBar() {
 
         {/* Active Exhibition badge */}
         {s.activeExhibition && (
-          <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded border border-[#C28B49]/40 bg-[#C28B49]/10 text-xs">
-            <span className="text-[#C28B49]">🏛️</span>
-            <span className="text-[#F0E9D9] font-medium truncate max-w-[140px]">{s.activeExhibition.title}</span>
-            <span className="text-[#6D9A83] num">+{fmt(s.activeExhibition.dailyRevenue)}đ/d</span>
+          <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 border border-[#c89b3c]/40 bg-[#c89b3c]/10 text-xs">
+            <IconMuseum size={12} />
+            <span className="text-[#e8d8b0] font-medium truncate max-w-[140px] font-vt" style={{ fontSize: "0.85rem" }}>{s.activeExhibition.title}</span>
+            <span className="text-[#4da87a] num">{fmt(s.activeExhibition.dailyRevenue)}đ/d</span>
           </div>
         )}
+
+
 
         {/* Core Institutional Stats */}
         <Stat label={t("day", lang)} tip="Calendar day: operational burn is charged, expeditions progress, market fluctuates.">
@@ -76,19 +84,22 @@ export default function StatusBar() {
 
         {/* Color-coded Runway Health */}
         <div className="tthost" tabIndex={0}>
-          <div className="text-[0.62rem] uppercase tracking-wider text-[#A2B0B2]">{t("runway", lang)}</div>
-          <div className={`num text-sm font-semibold flex items-center gap-1 ${
+          <div className="font-vt uppercase tracking-wider text-[#8a9ea8]" style={{ fontSize: "0.75rem" }}>{t("runway", lang)}</div>
+          <div className={`num font-semibold flex items-center gap-1 ${
             rl === null
-              ? "text-[#6D9A83]"
+              ? "text-[#4da87a]"
               : rl > 30
-              ? "text-[#6D9A83]"
+              ? "text-[#4da87a]"
               : rl >= 10
-              ? "text-[#C28B49]"
-              : "text-[#D66D67] animate-pulse"
-          }`}>
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-              rl === null || rl > 30 ? "bg-[#6D9A83]" : rl >= 10 ? "bg-[#C28B49]" : "bg-[#D66D67]"
-            }`} />
+              ? "text-[#c89b3c]"
+              : "text-[#e04040] pulse-soft"
+          }`} style={{ fontSize: "0.9rem" }}>
+            <IconSaveDot
+              size={8}
+              color={
+                rl === null || rl > 30 ? "#4da87a" : rl >= 10 ? "#c89b3c" : "#e04040"
+              }
+            />
             {rl === null ? t("stableRunway", lang) : `${rl}${t("daysCount", lang)}`}
           </div>
           <div className="tthost-body">
@@ -96,44 +107,57 @@ export default function StatusBar() {
           </div>
         </div>
 
+
+
         {/* Audio Mute Toggle */}
         <button
-          className="btn btn-ghost !py-1 !px-2 !text-xs text-[#A2B0B2] hover:text-[#F0E9D9]"
+          className="btn btn-ghost !py-1 !px-2 !text-xs text-[#8a9ea8] hover:text-[#e8d8b0]"
           onClick={handleToggleSound}
           title={muted ? t("soundMuted", lang) + " (Click to unmute - shortcut 'M')" : t("soundOn", lang) + " (Click to mute - shortcut 'M')"}
         >
-          {muted ? "🔇" : "🔊"}
+          {muted ? <IconSoundOff size={14} /> : <IconSoundOn size={14} />}
         </button>
 
         {/* Bilingual Language Toggle */}
         <button
-          className="btn btn-ghost !py-1 !px-2.5 !text-xs text-[#C28B49] border-[#C28B49]/30 hover:border-[#C28B49]"
+          className="btn btn-ghost !py-1 !px-2 text-[#c89b3c] border-[#c89b3c]/30 hover:border-[#c89b3c] flex items-center gap-1 font-vt"
+          style={{ fontSize: "0.85rem" }}
           onClick={handleToggleLang}
           title="Switch language between English and Tiếng Việt"
         >
-          {lang === "en" ? "🇻🇳 Tiếng Việt" : "🇬🇧 English"}
+          {lang === "en" ? <IconFlagVN size={14} /> : <IconFlagGB size={14} />}
+          <span>{lang === "en" ? "Tiếng Việt" : "English"}</span>
         </button>
+
 
         {/* Advance Day Action */}
         <button
-          className="btn btn-ghost !py-1 !text-[0.75rem] border border-[#22384a] hover:border-[#C28B49]"
+          className="btn btn-ghost !py-1 border border-[#22384a] hover:border-[#c89b3c] font-vt"
+          style={{ fontSize: "0.85rem" }}
           disabled={g.inTutorial()}
           onClick={() => g.nextDay()}
           title={g.inTutorial() ? "Complete the guided instruction flow first before advancing calendar days." : "Passes one day: charges operational expenses, advances digs (Spacebar)"}
         >
           {t("advanceDay", lang)}
         </button>
+
       </div>
     </header>
   );
 }
 
-function Stat({ label, tip, children, warn }: { label: string; tip: string; children: React.ReactNode; warn?: boolean }) {
+function Stat({ label, tip, children, warn, icon }: { label: string; tip: string; children: React.ReactNode; warn?: boolean; icon?: React.ReactNode }) {
   return (
     <div className="tthost" tabIndex={0}>
-      <div className="text-[0.62rem] uppercase tracking-wider text-[#A2B0B2]">{label}</div>
-      <div className={`num text-sm font-semibold ${warn ? "text-[#D66D67]" : "text-[#F0E9D9]"}`}>{children}</div>
+      {/* Use font-vt (Pixelify Sans) for labels — they may be Vietnamese via i18n */}
+      <div className="flex items-center gap-1 uppercase tracking-wider text-[#8a9ea8] font-vt mb-0.5" style={{ fontSize: "0.7rem" }}>
+        {icon}
+        {label}
+      </div>
+      <div className={`num font-semibold ${warn ? "text-[#e04040]" : "text-[#e8d8b0]"}`} style={{ fontSize: "0.95rem" }}>{children}</div>
       <div className="tthost-body">{tip}</div>
     </div>
   );
 }
+
+

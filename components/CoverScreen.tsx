@@ -6,7 +6,7 @@ export default function CoverScreen({ onEnter }: { onEnter: () => void }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setReady(true), 400); // small beat before title fades in
+    const t = setTimeout(() => setReady(true), 400);
     return () => clearTimeout(t);
   }, []);
 
@@ -24,45 +24,66 @@ export default function CoverScreen({ onEnter }: { onEnter: () => void }) {
       {/* Backdrop photograph — Cổ Loa (real site, used respectfully) */}
       <div
         className="absolute inset-0 bg-cover bg-center cover-zoom"
-        style={{ backgroundImage: "url(/assets/sites/coloas.jpg)" }}
+        style={{ backgroundImage: "url(/assets/sites/coloas.jpg)", imageRendering: "pixelated" }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#09131B]/70 via-[#09131B]/85 to-[#09131B]" />
-      {/* vignette */}
+      {/* Dark overlay */}
+      <div className="absolute inset-0" style={{ background: "rgba(10,14,20,0.75)" }} />
+      {/* Pixel scanline overlay */}
       <div
         className="absolute inset-0"
-        style={{ background: "radial-gradient(ellipse at center, transparent 40%, rgba(9,19,27,0.9) 100%)" }}
+        style={{
+          background: "repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 6px)",
+          zIndex: 2,
+        }}
       />
 
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center text-center px-6">
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center text-center px-6" style={{ zIndex: 3 }}>
         {ready && (
           <>
-            <p className="tag border-[#C28B49] text-[#C28B49] mb-6 rise-in">An archaeology · research · finance strategy game</p>
+            <p className="tag border-[#c89b3c] text-[#c89b3c] mb-6 rise-in" style={{ fontFamily: 'var(--font-pixel)', fontSize: '0.4rem', letterSpacing: '0.1em' }}>
+              ARCHAEOLOGY · RESEARCH · FINANCE STRATEGY
+            </p>
             <h1
-              className="font-display text-5xl md:text-7xl leading-none tracking-wide rise-in"
-              style={{ animationDelay: "0.35s" }}
+              className="rise-in text-glow-bronze"
+              style={{
+                fontFamily: 'var(--font-pixel)',
+                fontSize: 'clamp(1.2rem, 5vw, 3rem)',
+                lineHeight: 1.3,
+                letterSpacing: '0.08em',
+                animationDelay: '0.35s',
+                color: '#e8d8b0',
+              }}
             >
-              Relic <span className="text-[#C28B49]">Capital</span>
+              RELIC{" "}<span style={{ color: '#c89b3c' }}>CAPITAL</span>
             </h1>
+
+            {/* Pixel art decoration line */}
+            <div className="mt-6 mb-4 flex items-center gap-2 rise-in" style={{ animationDelay: '0.6s' }}>
+              <div style={{ width: 40, height: 2, background: 'var(--bronze)' }} />
+              <div style={{ width: 6, height: 6, background: 'var(--bronze)' }} />
+              <div style={{ width: 40, height: 2, background: 'var(--bronze)' }} />
+            </div>
+
             <p
-              className="text-[#A2B0B2] max-w-xl mt-6 text-sm md:text-base rise-in"
-              style={{ animationDelay: "0.8s" }}
+              className="text-[#8a9ea8] max-w-xl text-sm rise-in"
+              style={{ animationDelay: '0.8s', fontFamily: 'var(--font-vt323)', fontSize: '1.1rem' }}
             >
-              Every trench is an investment. Every discovery is a hypothesis.
-              Direct an independent research institute in Vietnam&apos;s fields —
-              dig, analyze, verify, publish, and keep the ledger alive.
+              EVERY TRENCH IS AN INVESTMENT. EVERY DISCOVERY IS A HYPOTHESIS.
+              DIRECT AN INDEPENDENT RESEARCH INSTITUTE IN VIETNAM&apos;S FIELDS —
+              DIG, ANALYZE, VERIFY, PUBLISH, AND KEEP THE LEDGER ALIVE.
             </p>
             <button
-              className="btn btn-primary mt-10 !px-8 !py-3 !text-base gild-flash rise-in"
-              style={{ animationDelay: "1.25s" }}
+              className="btn btn-primary mt-10 !px-8 !py-3 gild-flash rise-in"
+              style={{ animationDelay: '1.25s', fontSize: '1rem' }}
               onClick={(e) => {
                 e.stopPropagation();
                 onEnter();
               }}
             >
-              Enter the site →
+              [ENTER THE SITE] ►
             </button>
-            <p className="text-[0.65rem] text-[#5f7d8c] mt-8 rise-in" style={{ animationDelay: "1.6s" }}>
-              Press Enter · all in-game currency, instruments and scenarios are fictional
+            <p className="text-[0.45rem] text-[#4a6070] mt-8 rise-in" style={{ animationDelay: '1.6s', fontFamily: 'var(--font-pixel)' }}>
+              PRESS ENTER · ALL IN-GAME CURRENCY, INSTRUMENTS AND SCENARIOS ARE FICTIONAL
             </p>
           </>
         )}

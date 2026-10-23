@@ -15,8 +15,9 @@ export function grantScore(s: GameState, grantId: string): { score: number; reas
   const provAvg = s.artifacts.length ? s.artifacts.reduce((acc, a) => acc + a.provenance, 0) / s.artifacts.length : 0;
   const regionExplored = s.artifacts.some((a) => siteRegion(a.siteId) === g.requires.regionUnderExplored);
 
-  let score = 0.35;
+  let score = 0.45;  // raised from 0.35: a competent early application should pass
   if ((s.resources.reputation ?? 0) >= 20) { score += 0.1; reasons.push("Reputation strengthens the application."); }
+  if ((s.resources.reputation ?? 0) >= 10) { score += 0.04; reasons.push("Growing reputation noted."); }
   if (s.techResearched.includes("open-data")) { score += 0.1; reasons.push("Open Data Initiative lifts documentation credibility."); }
   if (s.staff.some((m) => m.roleId === "historian")) { score += 0.08; reasons.push("A historian improves narrative quality."); }
 
@@ -31,7 +32,8 @@ export function grantScore(s: GameState, grantId: string): { score: number; reas
   if (g.requires.minPublications && published < g.requires.minPublications) blockers.push(`Requires ≥${g.requires.minPublications} publications (have ${published}).`);
 
   // quality contribution
-  if (g.id === "documentation" && provAvg >= 0.4) { score += 0.25; reasons.push("Well-provenanced records score well."); }
+  if (g.id === "documentation" && provAvg >= 0.25) { score += 0.25; reasons.push("Well-provenanced records score well."); }
+  else if (g.id === "documentation" && provAvg >= 0.15) { score += 0.12; reasons.push("Partial provenance on record."); }
   if (g.id === "conservation" && condGood >= 5) { score += 0.25; reasons.push("Strong condition record demonstrates safe recovery."); }
   if (g.id === "digital-heritage" && digitized >= 5) { score += 0.25; reasons.push("Digitization effort evident."); }
   if (g.id === "regional-survey" && regionExplored) { score += 0.25; reasons.push("Under-researched region explored."); }
@@ -79,7 +81,7 @@ export function resolveGrants(s: GameState): GrantApplication[] {
     if (s.day < app.decisionDay) continue;
     const g = GRANTS.find((x) => x.id === app.grantId)!;
     // score vs threshold — deterministic + reputation influence
-    const threshold = clamp(0.55 * (g.repRequired > 8 ? 1.08 : 1) * DIFFICULTY_GRANT_SEVERITY(s), 0.3, 0.9);
+    const threshold = clamp(0.50 * (g.repRequired > 8 ? 1.06 : 1) * DIFFICULTY_GRANT_SEVERITY(s), 0.25, 0.85);
     if (app.score >= threshold) {
       app.status = "approved";
       s.resources.cash += g.payout;
