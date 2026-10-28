@@ -10,6 +10,9 @@ export type ResourceKey =
 
 export type Difficulty = "story" | "standard" | "expert";
 
+/** How deep into the stratigraphy an expedition digs. */
+export type DepthBand = "surface" | "cultural" | "deep";
+
 export type RegionId = "north" | "delta" | "central" | "highlands" | "south";
 
 export interface Region {
@@ -194,6 +197,8 @@ export interface ExpeditionPlan {
   survey: boolean; // survey first?
   careful: boolean; // carefully recover vs speed
   objective: "survey" | "balanced" | "intensive";
+  /** Target stratigraphic band. Omitted = "cultural" for older saves. */
+  depth?: DepthBand;
 }
 
 export interface ExpeditionEvent {
@@ -216,6 +221,8 @@ export interface Expedition {
   eventLog: ExpeditionEvent[];
   discoveries: string[]; // artifact uids
   discoveryBoost?: number; // from mid-expedition decisions
+  /** Consecutive dig days without a find — feeds the field-hunch bonus. */
+  dryDays?: number;
   tutorialDecisionDone?: boolean;
   pendingDecision?: {
     id: string;
@@ -228,9 +235,11 @@ export interface Expedition {
 
 // ── Research lab ─────────────────────────────────────────────────────────────
 export type ResearchOp =
+  | "typology"
+  | "material"
+  | "inscription"
   | "classification"
   | "period"
-  | "inscription"
   | "refMatch"
   | "contextual"
   | "anomaly"
@@ -423,6 +432,18 @@ export interface RivalClaim {
   resolved: "defended" | "conceded" | null;
 }
 
+// ── Museum assemblages (collection sets) ────────────────────────────────────
+export interface AssemblageDef {
+  id: string;
+  name: string;
+  era: EraId;
+  region: RegionId;
+  desc: string;
+  /** Artifact template ids required for the set. */
+  templateIds: string[];
+  reward: { cash: number; research: number; reputation: number };
+}
+
 // ── Campaign ─────────────────────────────────────────────────────────────────
 export interface CampaignChapter {
   id: string;
@@ -493,6 +514,8 @@ export interface GameState {
   rivalClaims: RivalClaim[];
   /** Discovery streak counter: days since last artifact find (during active expedition) */
   discoveryStreak: number;
+  /** Museum assemblages already completed and rewarded. */
+  completedAssemblages?: string[];
 }
 
 export interface MuseumExhibition {

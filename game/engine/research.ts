@@ -6,9 +6,11 @@ import { clamp, spend } from "./core";
 let reportSeq = 0;
 
 export const RESEARCH_COSTS: Record<ResearchOp, { research: number; days?: number }> = {
-  classification: { research: 6 },   // cheap first step to classify any find
+  typology: { research: 12 },
+  material: { research: 14 },
+  inscription: { research: 16, days: 1 },
+  classification: { research: 6 },
   period: { research: 12 },
-  inscription: { research: 18, days: 1 },
   refMatch: { research: 14 },
   contextual: { research: 15 },
   anomaly: { research: 10 },
@@ -16,9 +18,11 @@ export const RESEARCH_COSTS: Record<ResearchOp, { research: number; days?: numbe
 };
 
 export const RESEARCH_LABELS: Record<ResearchOp, string> = {
+  typology: "Typological & Stylistic Analysis",
+  material: "Scientific & Material Testing",
+  inscription: "Epigraphical Decipherment",
   classification: "Artifact classification",
   period: "Period estimation",
-  inscription: "Inscription analysis",
   refMatch: "Reference matching",
   contextual: "Contextual research",
   anomaly: "Anomaly detection",
@@ -67,6 +71,58 @@ export function runAnalysis(
   const sources: string[] = [];
 
   switch (op) {
+    case "typology": {
+      const era = qualityAssessment(a, s, rng);
+      const matches = findRefs(a.category).slice(0, 3);
+      const isMatch = era === periodName(a);
+      interpretation = `Typological and stylistic comparative series aligns this find with the ${era} cultural horizon. Fabric (${a.material}) and ornamentation match regional index types.`;
+      supporting.push(`Stylistic match: ${a.category} profile matches regional type-series.`);
+      if (matches.length) supporting.push(`Reference comparison: ${matches[0].name} (${matches[0].ref}).`);
+      missing.push(s.techResearched.includes("radiocarbon-access") ? "Absolute radiocarbon dating recommended to corroborate typology." : "Comparative stylistic typology — test material integrity next.");
+      nextStep = "Proceed to Scientific & Material Testing or Verify Evidence if confidence is robust.";
+      if (matches.length) sources.push(...matches.map((m) => m.ref));
+      sources.push("National Museum Type-Series Corpus");
+
+      const confGain = (isMatch ? 0.22 : 0.08) * diminishFactor;
+      a.confidence = clamp(a.confidence + confGain, 0, 0.96);
+      a.period = era;
+      a.eraHint = eraNameToId(era);
+      a.evidences.push({
+        id: `e-typ-${a.evidences.length}`,
+        kind: "typological",
+        label: "Typological & Period Concordance",
+        detail: `Typology matches ${era} series (similarity: ${matches[0]?.name ?? "Index Record"}).`,
+        support: 0.5 * diminishFactor,
+      });
+      a.status = a.status === "unanalyzed" ? "classified" : a.status;
+      break;
+    }
+    case "material": {
+      const issues: string[] = [];
+      if (a.condition === "poor" || a.condition === "fragile") issues.push("Material degradation requires stabilization.");
+      if (a.provenance < 0.4) issues.push("Stratigraphic provenance documentation has minor gaps.");
+      interpretation = `Material composition analysis (${a.material}): microstructure and trace elements confirm authenticity. ${issues.join(" ") || "No structural anomalies detected."}`;
+      supporting.push(`Material signature: authentic ${a.material} matrix with characteristic patina/wear.`);
+      supporting.push(`Context layer: ${a.context}.`);
+      if (s.techResearched.includes("radiocarbon-access")) {
+        supporting.push("Radiocarbon access: stratigraphic layer calibrated successfully.");
+      }
+      missing.push("Non-destructive surface testing only — internal core remains intact.");
+      nextStep = a.confidence >= 0.7 ? "Evidence is robust — ready to Verify and Publish." : "Run Inscription decipherment or additional reference matching.";
+      sources.push("Archaeological Material & Archaeometry Standard Index");
+
+      const confGain = 0.18 * diminishFactor;
+      a.confidence = clamp(a.confidence + confGain, 0, 0.96);
+      a.evidences.push({
+        id: `e-mat-${a.evidences.length}`,
+        kind: "contextual",
+        label: "Material Integrity & Calibration",
+        detail: `Composition (${a.material}) and preservation verified against context layer.`,
+        support: 0.45 * diminishFactor,
+      });
+      a.status = a.status === "unanalyzed" ? "classified" : a.status;
+      break;
+    }
     case "classification": {
       const confGain = 0.04 * diminishFactor;
       interpretation = `Type-based reading suggests: ${a.category} artifact; fabric/material (${a.material}) consistent with ${periodName(a)}.`;

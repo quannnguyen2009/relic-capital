@@ -68,6 +68,7 @@ export function newGame(difficulty: Difficulty = "standard", seed?: number): Gam
 
     rivalClaims: [],
     discoveryStreak: 0,
+    completedAssemblages: [],
   };
   return s;
 }

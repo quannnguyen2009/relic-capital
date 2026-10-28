@@ -1,10 +1,11 @@
 import type {
   GameState, ResourceKey, LedgerEntry, ExpeditionPlan, Expedition, PlayerArtifact,
   ArtifactHypothesis, Evidence, Condition, ArtifactTemplate, EquipmentDef, Site,
+  DepthBand, AssemblageDef,
 } from "./types";
 import { rngFor, makeRng } from "./rng";
-import { DIFFICULTIES, STAFF_DEFS, EQUIPMENT_DEFS, ACHIEVEMENTS, siteRegionOf, CAMPAIGN } from "../data/systems";
-import { SITES, ARTIFACT_TEMPLATES } from "../data/world";
+import { DIFFICULTIES, STAFF_DEFS, EQUIPMENT_DEFS, ACHIEVEMENTS, siteRegionOf, CAMPAIGN, DEPTHS } from "../data/systems";
+import { SITES, ARTIFACT_TEMPLATES, ASSEMBLAGES } from "../data/world";
 import { marketTick } from "./market";
 
 const EQUIP_MAINT: Record<string, number> = Object.fromEntries(EQUIPMENT_DEFS.map((e) => [e.id, e.maintenancePerDay]));
@@ -166,6 +167,17 @@ export function evaluateAssemblageCoherence(s: GameState) {
   });
 }
 
+// ── Excavation depth & field hunch ───────────────────────────────────────────
+/** Older saves and plans without a depth default to the balanced cultural band. */
+export function depthOf(plan: ExpeditionPlan): DepthBand {
+  return plan.depth ?? "cultural";
+}
+
+/** Rising discovery odds during a dry spell (pity timer), capped at +45%. */
+export function fieldHunch(dryDays: number): number {
+  return Math.min(0.45, Math.max(0, dryDays) * 0.07);
+}
+
 // ── Artifact generation ──────────────────────────────────────────────────────
 // Sequence derived from the save's existing artifacts so uids never collide
 // after a save/load cycle (module state resets on reload, saves do not).
@@ -192,14 +204,16 @@ export function makeArtifact(
   quality: number,
   rng: ReturnType<typeof makeRng>,
   conditionBias: number,
+  depth: DepthBand = "cultural",
 ): PlayerArtifact {
+  const band = DEPTHS[depth];
   const uid = `A${String(nextArtifactSeq(s)).padStart(3, "0")}`;
   const trueEra = tpl.eras[rng.int(tpl.eras.length)];
   const conditionPool: Condition[] = ["pristine", "good", "fair", "poor", "fragile"];
-  const condIdxRaw = Math.round((1 - quality) * 2 + conditionBias * 1.5 + rng.range(-0.6, 0.6));
+  const condIdxRaw = Math.round((1 - quality) * 2 + (conditionBias + band.conditionBias) * 1.5 + rng.range(-0.6, 0.6));
   const condition = conditionPool[clamp(condIdxRaw, tpl.baseSignificance >= 8 ? 1 : 2, 4)];
   const provenance = clamp(quality * 0.8 + rng.range(-0.1, 0.15), 0.05, 0.95);
-  const measuredSig = clamp(Math.round(tpl.baseSignificance * (0.7 + quality * 0.4)), 1, 10);
+  const measuredSig = clamp(Math.round(tpl.baseSignificance * (0.7 + quality * 0.4)) + band.significanceBonus, 1, 10);
 
   const hypotheses: ArtifactHypothesis[] = [
     { id: "h1", statement: `Likely a ${tpl.category} object of ${eraLabel(trueEra)} date, from a ${site.name} context.`, probability: 0.35 + quality * 0.3 },
@@ -224,7 +238,7 @@ export function makeArtifact(
     description: tpl.desc,
     condition,
     significance: measuredSig,
-    evidencedValue: Math.round(tpl.baseValue * (0.6 + provenance * 0.6)),
+    evidencedValue: Math.round(tpl.baseValue * (0.6 + provenance * 0.6) * band.valueMult),
     confidence: 0.25 + quality * 0.2,
     confidenceLabel: "hypothesis",
     provenance,
@@ -290,11 +304,14 @@ export function expeditionQuality(s: GameState, e: Expedition): number {
   if (s.techResearched.includes("stratigraphic-control")) q += 0.08;
   const fieldStaff = s.staff.filter((m) => m.roleId === "field").length;
   q += fieldStaff * 0.06;
+  const band = depthOf(e.plan);
+  q += band === "deep" ? 0.06 : band === "surface" ? -0.04 : 0;
   return clamp(q, 0.1, 1);
 }
 
 export function estimateExpedition(s: GameState, plan: ExpeditionPlan): { cost: number; supplies: number; days: number; energy: number; warnings: string[] } {
   const site = SITES.find((x) => x.id === plan.siteId)!;
+  const band = DEPTHS[depthOf(plan)];
   let cost = site.baseCost * (0.55 + plan.workers * 0.075) * (plan.days * 0.4 + site.difficulty * 0.25);
   if (plan.objective === "survey") cost *= 0.65;
   if (plan.objective === "intensive") cost *= 1.5;
@@ -302,14 +319,16 @@ export function estimateExpedition(s: GameState, plan: ExpeditionPlan): { cost: 
   if (plan.survey) cost *= 1.2;
   if (s.staff.some((m) => m.roleId === "logistics")) cost *= 0.88;
   if (s.techResearched.includes("vehicle-fleet")) cost *= 0.85;
+  cost *= band.costMult;
 
-  const supplies = Math.round((plan.workers * plan.days) / 2.2 + (plan.objective === "intensive" ? 8 : 4));
-  const energy = 10 + plan.workers * 6 + plan.days * 2;
+  const supplies = Math.round(((plan.workers * plan.days) / 2.2 + (plan.objective === "intensive" ? 8 : 4)) * band.supplyMult);
+  const energy = Math.round((10 + plan.workers * 6 + plan.days * 2) * band.energyMult);
 
   const warnings: string[] = [];
   if (cost > s.resources.cash * 0.6) warnings.push("This expedition consumes over 60% of available cash.");
   if (supplies > s.resources.supplies) warnings.push(`Needs ~${supplies} field supplies, you have ${Math.floor(s.resources.supplies)}.`);
   if (energy > s.resources.energy) warnings.push(`Requires ~${energy} team energy, you have ${Math.floor(s.resources.energy)}.`);
+  if (depthOf(plan) === "deep") warnings.push("Deep strata: richer finds, but shoring costs and collapse risk are higher.");
 
   return { cost: Math.round(cost), supplies: supplies, days: plan.days, energy, warnings };
 }
@@ -346,6 +365,7 @@ export function startExpedition(s: GameState, plan: ExpeditionPlan): { ok: boole
     budget: est.cost,
     eventLog: [{ day: s.day, text: `Expedition to ${SITES.find((x) => x.id === plan.siteId)!.name} begins. Budget ${fmt(est.cost)}đ committed.`, kind: "info" }],
     discoveries: [],
+    dryDays: 0,
     siteStatus: "intact",
   };
   s.expedition = exped;
@@ -354,7 +374,12 @@ export function startExpedition(s: GameState, plan: ExpeditionPlan): { ok: boole
   return { ok: true, exped };
 }
 
-function pickTemplate(s: GameState, site: Site, rng: ReturnType<typeof makeRng>): ArtifactTemplate | null {
+function pickTemplate(
+  s: GameState,
+  site: Site,
+  rng: ReturnType<typeof makeRng>,
+  depth: DepthBand = "cultural",
+): ArtifactTemplate | null {
   void s;
   const pool = ARTIFACT_TEMPLATES.filter((t) => {
     if (!site.eras.some((e) => t.eras.includes(e))) return false;
@@ -363,7 +388,14 @@ function pickTemplate(s: GameState, site: Site, rng: ReturnType<typeof makeRng>)
     return true;
   });
   if (!pool.length) return null;
-  const weights = pool.map((t) => (t.rarity === "common" ? 6 : t.rarity === "uncommon" ? 3 : t.rarity === "rare" ? 1.2 : 0.35));
+  const rarityBoost = DEPTHS[depth].rarityBoost;
+  const weights = pool.map((t) => {
+    const base = t.rarity === "common" ? 6 : t.rarity === "uncommon" ? 3 : t.rarity === "rare" ? 1.2 : 0.35;
+    // Deep digs favour rare material; surface digs mostly turn up the common type series.
+    if (t.rarity === "rare" || t.rarity === "exceptional") return base * rarityBoost;
+    if (t.rarity === "common" && depth === "surface") return base * 1.6;
+    return base;
+  });
   const total = weights.reduce((a, b) => a + b, 0);
   let r = rng.next() * total;
   for (let i = 0; i < pool.length; i++) {
@@ -374,6 +406,15 @@ function pickTemplate(s: GameState, site: Site, rng: ReturnType<typeof makeRng>)
 }
 
 // ── Expedition daily resolution ──────────────────────────────────────────────
+/** Displayed and rolled discovery chance for the next dig day. */
+export function expeditionFindChance(s: GameState, e: Expedition): number {
+  const quality = expeditionQuality(s, e);
+  const band = DEPTHS[depthOf(e.plan)];
+  const objectiveMult = e.plan.objective === "intensive" ? 1.5 : e.plan.objective === "survey" ? 0.65 : 1;
+  const raw = 0.33 * objectiveMult * (0.6 + quality + (e.discoveryBoost ?? 0) + fieldHunch(e.dryDays ?? 0)) * band.findMult;
+  return clamp(raw, 0.08, 0.92);
+}
+
 export function advanceExpeditionDay(s: GameState): { done: boolean; discovered: PlayerArtifact[] } {
   const e = s.expedition!;
   const site = SITES.find((x) => x.id === e.plan.siteId)!;
@@ -382,20 +423,38 @@ export function advanceExpeditionDay(s: GameState): { done: boolean; discovered:
   const discovered: PlayerArtifact[] = [];
 
   const quality = expeditionQuality(s, e);
-  // Raised base chance from 0.28 → 0.33: ensures beginners reliably find things
-  const baseChance = 0.33 * (e.plan.objective === "intensive" ? 1.5 : e.plan.objective === "survey" ? 0.65 : 1) * (0.6 + quality + (e.discoveryBoost ?? 0));
-  if (rng.chance(clamp(baseChance, 0.08, 0.92)) && s.resources.supplies > 0) {
-    const tpl = pickTemplate(s, site, rng);
+  const depth = depthOf(e.plan);
+  const band = DEPTHS[depth];
+  const dryDays = e.dryDays ?? 0;
+  // Base chance: 0.33 ensures beginners reliably find things. A dry spell builds
+  // field hunch, while depth trades raw frequency for richer material.
+  const baseChance = expeditionFindChance(s, e);
+  let found = false;
+  if (rng.chance(baseChance) && s.resources.supplies > 0) {
+    const tpl = pickTemplate(s, site, rng, depth);
     if (tpl) {
       const condBias = (e.plan.careful ? 0.15 : -0.1) + (equipmentValue(s, "damageReduction") > 0 ? 0.15 : 0);
-      const art = makeArtifact(s, tpl, site, quality, rng, condBias);
+      const art = makeArtifact(s, tpl, site, quality, rng, condBias, depth);
       s.artifacts.push(art);
       e.discoveries.push(art.uid);
       discovered.push(art);
+      found = true;
+      e.dryDays = 0;
+      s.discoveryStreak = 0;
       e.eventLog.push({ day: s.day, text: `Discovery: ${art.name} (${art.category}, condition ${art.condition}).`, kind: "good" });
       s.journal.push({ day: s.day, kind: "discovery", entry: `Recovered ${art.name} at ${site.name}. Significance ${art.significance}/10.` });
       s.resources.knowledge += 3;
     }
+  }
+  if (!found) {
+    e.dryDays = dryDays + 1;
+    s.discoveryStreak = dryDays + 1;
+    const nextHunch = Math.round(fieldHunch(dryDays + 1) * 100);
+    e.eventLog.push({
+      day: s.day,
+      text: `No find today — the team reads the layer and sharpens its hunch (+${nextHunch}% tomorrow).`,
+      kind: "info",
+    });
   }
 
   // mid-expedition field decisions — rotated by elapsed day bucket and site type
@@ -408,7 +467,7 @@ export function advanceExpeditionDay(s: GameState): { done: boolean; discovered:
   }
 
   // field mishap — reduced base risk so early game feels less punishing
-  const riskP = (site.risk / 5) * 0.08 * DIFFICULTIES[s.difficulty].eventRisk * (1 - equipmentValue(s, "damageReduction") * 0.5);
+  const riskP = (site.risk / 5) * 0.08 * band.riskMult * DIFFICULTIES[s.difficulty].eventRisk * (1 - equipmentValue(s, "damageReduction") * 0.5);
   if (rng.chance(riskP)) {
     e.eventLog.push({ day: s.day, text: "Field incident: a section slumps — some context integrity lost.", kind: "bad" });
     if (e.discoveries.length) {
@@ -653,16 +712,19 @@ export function resolveExpedition(s: GameState) {
   const e = s.expedition!;
   const site = SITES.find((x) => x.id === e.plan.siteId)!;
   const q = expeditionQuality(s, e);
+  const depth = depthOf(e.plan);
   const rng = rngFor(s.seed, `expdone-${e.id}`);
 
   // Guarantee at least 1 find per expedition (not just careful digs)
   // so the first expedition always has a "loot reveal" moment.
   if (e.discoveries.length === 0) {
-    const tpl = pickTemplate(s, site, rng);
+    const tpl = pickTemplate(s, site, rng, depth);
     if (tpl) {
-      const art = makeArtifact(s, tpl, site, Math.max(q, 0.4), rng, e.plan.careful ? 0.1 : -0.05);
+      const art = makeArtifact(s, tpl, site, Math.max(q, 0.4), rng, e.plan.careful ? 0.1 : -0.05, depth);
       s.artifacts.push(art);
       e.discoveries.push(art.uid);
+      e.dryDays = 0;
+      s.discoveryStreak = 0;
       s.journal.push({ day: s.day, kind: "discovery", entry: `Completion screening recovered ${art.name} at ${site.name}.` });
       e.eventLog.push({ day: s.day, text: `Completion find: ${art.name}.`, kind: "good" });
     }
@@ -670,11 +732,13 @@ export function resolveExpedition(s: GameState) {
 
   // Bonus find chance (scales with quality and find mode)
   if (rng.chance(q * 0.4)) {
-    const tpl = pickTemplate(s, site, rng);
+    const tpl = pickTemplate(s, site, rng, depth);
     if (tpl) {
-      const art = makeArtifact(s, tpl, site, q, rng, e.plan.careful ? 0.1 : -0.05);
+      const art = makeArtifact(s, tpl, site, q, rng, e.plan.careful ? 0.1 : -0.05, depth);
       s.artifacts.push(art);
       e.discoveries.push(art.uid);
+      e.dryDays = 0;
+      s.discoveryStreak = 0;
       s.journal.push({ day: s.day, kind: "discovery", entry: `Final-day find at ${site.name}: ${art.name}.` });
     }
   }
@@ -700,6 +764,41 @@ export function resolveExpedition(s: GameState) {
   const regionsSet = new Set(Array.from(new Set(s.artifacts.map((a) => siteRegionOf(a.siteId)))));
   s.flags.regionsExplored = regionsSet.size;
   s.journal.push({ day: s.day, kind: "progress", entry: `Expedition at ${site.name} complete — reputation +${rep}.` });
+}
+
+// ── Museum assemblages ───────────────────────────────────────────────────────
+/** Templates present in the archive with at least first-pass analysis done. */
+export function catalogedTemplateIds(s: GameState): Set<string> {
+  return new Set(s.artifacts.filter((a) => a.status !== "unanalyzed").map((a) => a.templateId));
+}
+
+export function assemblageProgress(s: GameState, def: AssemblageDef): { owned: string[]; missing: string[]; complete: boolean } {
+  const cataloged = catalogedTemplateIds(s);
+  const owned = def.templateIds.filter((t) => cataloged.has(t));
+  const missing = def.templateIds.filter((t) => !cataloged.has(t));
+  return { owned, missing, complete: missing.length === 0 };
+}
+
+/** Complete any qualifying assemblages, paying rewards once per set. */
+export function evaluateAssemblages(s: GameState): string[] {
+  if (!s.completedAssemblages) s.completedAssemblages = [];
+  const completed: string[] = [];
+  for (const def of ASSEMBLAGES) {
+    if (s.completedAssemblages.includes(def.id)) continue;
+    if (!assemblageProgress(s, def).complete) continue;
+    s.completedAssemblages.push(def.id);
+    s.resources.cash += def.reward.cash;
+    s.resources.research = Math.min(200, s.resources.research + def.reward.research);
+    s.resources.reputation += def.reward.reputation;
+    s.ledger.push(ledgerEntry("assemblage", s.day, def.reward.cash, `Museum assemblage completed: ${def.name}`, "other"));
+    s.journal.push({
+      day: s.day,
+      kind: "progress",
+      entry: `Museum assemblage complete — ${def.name}. +${fmt(def.reward.cash)}đ, +${def.reward.research} research, +${def.reward.reputation} reputation.`,
+    });
+    completed.push(def.id);
+  }
+  return completed;
 }
 
 // ── Achievements ─────────────────────────────────────────────────────────────

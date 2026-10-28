@@ -29,6 +29,11 @@ const vietnamFont = Be_Vietnam_Pro({
 export const metadata: Metadata = {
   title: "Relic Capital",
   description: "A Vietnamese archaeology strategy game — every excavation is an investment, every discovery a hypothesis.",
+  icons: {
+    icon: "/assets/logo.svg",
+    shortcut: "/assets/logo.svg",
+    apple: "/assets/logo.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

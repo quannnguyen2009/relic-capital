@@ -1,6 +1,7 @@
 import type {
   StaffDef, EquipmentDef, GrantDef, ResearchTechDef, GameEventDef,
   DifficultyDef, CampaignChapter, RefRecord, Instrument, AchievementDef, GameState,
+  DepthBand,
 } from "../engine/types";
 
 // ── Staff ────────────────────────────────────────────────────────────────────
@@ -69,6 +70,48 @@ export const DIFFICULTIES: Record<string, DifficultyDef> = {
   story:    { id: "story",    name: "Story",    desc: "Generous funding, forgiving setbacks.",      startingCash: 200000, startingResearch: 120, startingSupplies: 60, opExpensePerDay: 900,  eventRisk: 0.5, grantSeverity: 0.7 },
   standard: { id: "standard", name: "Standard", desc: "Balanced costs, meaningful risks.",          startingCash: 150000, startingResearch: 80,  startingSupplies: 45, opExpensePerDay: 1600, eventRisk: 0.9, grantSeverity: 0.9 },
   expert:   { id: "expert",   name: "Expert",   desc: "Tighter budgets, greater uncertainty.",      startingCash: 100000, startingResearch: 55,  startingSupplies: 30, opExpensePerDay: 2400, eventRisk: 1.3, grantSeverity: 1.15 },
+};
+
+// ── Excavation depth bands ───────────────────────────────────────────────────
+// Targeting a band trades cost, time and risk against the richness of finds.
+export const DEPTHS: Record<DepthBand, {
+  name: string;
+  short: string;
+  desc: string;
+  costMult: number;
+  supplyMult: number;
+  energyMult: number;
+  findMult: number;
+  riskMult: number;
+  significanceBonus: number;
+  valueMult: number;
+  conditionBias: number;
+  rarityBoost: number;
+}> = {
+  surface: {
+    name: "Surface & topsoil",
+    short: "Surface",
+    desc: "Fast, cheap and safe. Mostly common material and recent disturbance.",
+    costMult: 0.8, supplyMult: 0.9, energyMult: 0.9,
+    findMult: 1.2, riskMult: 0.6,
+    significanceBonus: -1, valueMult: 0.8, conditionBias: 0.12, rarityBoost: 0.4,
+  },
+  cultural: {
+    name: "Cultural layer",
+    short: "Cultural",
+    desc: "The productive middle stratum — balanced odds, cost and preservation.",
+    costMult: 1, supplyMult: 1, energyMult: 1,
+    findMult: 1, riskMult: 1,
+    significanceBonus: 0, valueMult: 1, conditionBias: 0, rarityBoost: 1,
+  },
+  deep: {
+    name: "Deep strata",
+    short: "Deep",
+    desc: "Rarer, higher-significance finds — but slower, costlier and structurally risky.",
+    costMult: 1.45, supplyMult: 1.25, energyMult: 1.15,
+    findMult: 0.85, riskMult: 1.6,
+    significanceBonus: 2, valueMult: 1.35, conditionBias: -0.12, rarityBoost: 2,
+  },
 };
 
 // ── Campaign chapters ────────────────────────────────────────────────────────
@@ -350,6 +393,7 @@ export const GAME_EVENTS: GameEventDef[] = [
 // ── Achievements ─────────────────────────────────────────────────────────────
 export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "first-dig", name: "First Trench", desc: "Complete your first expedition.", check: (s) => Number(s.flags.expeditionsCompleted ?? 0) >= 1 },
+  { id: "curator", name: "Curator", desc: "Complete a museum assemblage.", check: (s) => (s.completedAssemblages ?? []).length >= 1 },
   { id: "first-verify", name: "Show Your Work", desc: "Verify an artifact's attribution.", check: (s) => s.artifacts.some((a) => a.confidenceLabel === "verified") },
   { id: "five-artifacts", name: "Growing Archive", desc: "Document 5 artifacts.", check: (s) => s.artifacts.length >= 3 },
   { id: "grantee", name: "Grantee", desc: "Win a grant.", check: (s) => s.grantApplications.some((g) => g.status === "approved") },

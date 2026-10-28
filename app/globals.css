@@ -351,7 +351,49 @@ td, th { border: 1px solid var(--line); }
 /* ── Focus ring ── */
 :focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
 
+/* ── Logo glow animation ── */
+@keyframes logoGlowPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(200, 155, 60, 0.35));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(245, 210, 109, 0.65));
+    transform: scale(1.02);
+  }
+}
+.logo-glow-pulse {
+  animation: logoGlowPulse 4s ease-in-out infinite;
+}
+
+/* ── Character Avatar Animations ── */
+@keyframes avatarBreathe {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes avatarSpeak {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+  }
+  25% {
+    transform: scale(1.03) translateY(-1px);
+  }
+  75% {
+    transform: scale(0.98) translateY(1px);
+  }
+}
+.avatar-idle-breathe {
+  animation: avatarBreathe 3s ease-in-out infinite;
+}
+.avatar-speaking {
+  animation: avatarSpeak 0.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .rise-in, .pulse-soft, .gild-flash, .cover-zoom { animation: none; }
+  .rise-in, .pulse-soft, .gild-flash, .cover-zoom, .logo-glow-pulse, .avatar-idle-breathe, .avatar-speaking { animation: none; }
   * { transition-duration: 0.01ms !important; }
 }

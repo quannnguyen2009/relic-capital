@@ -4,6 +4,7 @@ import { Panel, Tooltip } from "../ui";
 import { fmt } from "@/game/engine/core";
 import { STAFF_DEFS, EQUIPMENT_DEFS, TECHS, ACHIEVEMENTS, CAMPAIGN } from "@/game/data/systems";
 import type { RoleId } from "@/game/engine/types";
+import PixelAvatar from "../PixelAvatar";
 
 export default function DevScreen() {
   const g = useGame();
@@ -17,12 +18,15 @@ export default function DevScreen() {
             {s.staff.map((m) => {
               const def = STAFF_DEFS.find((d) => d.id === m.roleId)!;
               return (
-                <div key={m.instanceId} className="panel-elevated p-2 flex justify-between items-center text-sm">
-                  <div>
-                    <span className="font-display">{m.name}</span> <span className="text-xs text-[#A2B0B2]">— {def.title} · skill {m.skill}/5</span>
-                    <div className="text-[0.7rem] text-[#6D9A83]">{def.ability}</div>
+                <div key={m.instanceId} className="panel-elevated p-2 flex justify-between items-center text-sm gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <PixelAvatar doctorId={m.roleId} size={36} frame="pixel-box" />
+                    <div>
+                      <span className="font-display">{m.name}</span> <span className="text-xs text-[#A2B0B2]">— {def.title} · skill {m.skill}/5</span>
+                      <div className="text-[0.7rem] text-[#6D9A83]">{def.ability}</div>
+                    </div>
                   </div>
-                  <span className="num text-xs text-[#A2B0B2]">{fmt(def.salary)} đ/d</span>
+                  <span className="num text-xs text-[#A2B0B2] shrink-0">{fmt(def.salary)} đ/d</span>
                 </div>
               );
             })}

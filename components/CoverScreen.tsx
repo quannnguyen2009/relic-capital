@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import RelicCapitalLogo from "./RelicCapitalLogo";
 
 /** Cinematic cover/title screen shown on app entry, before the start menu. */
 export default function CoverScreen({ onEnter }: { onEnter: () => void }) {
@@ -40,7 +41,12 @@ export default function CoverScreen({ onEnter }: { onEnter: () => void }) {
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center text-center px-6" style={{ zIndex: 3 }}>
         {ready && (
           <>
-            <p className="tag border-[#c89b3c] text-[#c89b3c] mb-6 rise-in" style={{ fontFamily: 'var(--font-pixel)', fontSize: '0.4rem', letterSpacing: '0.1em' }}>
+            {/* Pixel Art Logo Emblem */}
+            <div className="mb-4 rise-in" style={{ animationDelay: '0.15s' }}>
+              <RelicCapitalLogo size={100} variant="emblem" animateGlow />
+            </div>
+
+            <p className="tag border-[#c89b3c] text-[#c89b3c] mb-4 rise-in" style={{ fontFamily: 'var(--font-pixel)', fontSize: '0.4rem', letterSpacing: '0.1em' }}>
               ARCHAEOLOGY · RESEARCH · FINANCE STRATEGY
             </p>
             <h1

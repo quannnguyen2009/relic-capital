@@ -1,4 +1,4 @@
-import type { Era, Region, Site, ArtifactTemplate, EraId, RegionId, ArtifactCategory } from "../engine/types";
+import type { Era, Region, Site, ArtifactTemplate, EraId, RegionId, ArtifactCategory, AssemblageDef } from "../engine/types";
 
 export const REGIONS: Region[] = [
   {
@@ -216,6 +216,66 @@ export const ARTIFACT_TEMPLATES: ArtifactTemplate[] = [
   // ── Manuscripts ──
   { id: "manuscript-palm-leaf", name: "Palm-leaf manuscript fragment", category: "manuscript", material: "palm leaf", eras: ["champa", "trade-network"], baseSignificance: 9, baseValue: 28000, desc: "Carbonized palm-leaf strip with a few legible aksara.", minDifficulty: 4, regions: ["central", "south"], rarity: "exceptional" },
   { id: "manuscript-mulberry", name: "Dó paper fragment", category: "manuscript", material: "dó paper", eras: ["trade-network"], baseSignificance: 7, baseValue: 17000, desc: "Waterlogged fragment of dó paper bearing a fragmentary brush note — a trade-era document.", minDifficulty: 4, regions: ["south"], rarity: "rare" },
+];
+
+// ── Museum assemblages ───────────────────────────────────────────────────────
+// Collection sets built from specific artifact types. Cataloging every piece in
+// a set (running any analysis on it) completes the assemblage for a reward.
+export const ASSEMBLAGES: AssemblageDef[] = [
+  {
+    id: "delta-type-series",
+    name: "Red River Type Series",
+    era: "dong-son",
+    region: "delta",
+    desc: "A household assemblage and its metalwork: the founding display of any delta museum.",
+    templateIds: ["pot-dong-son-jar", "pot-phung-nguyen-bowl", "bronze-socketed-axe"],
+    reward: { cash: 30000, research: 20, reputation: 6 },
+  },
+  {
+    id: "dong-son-workshop",
+    name: "Đông Sơn Workshop",
+    era: "dong-son",
+    region: "delta",
+    desc: "Casting mold, ritual vessel and a drum fragment — the full bronze-worker's story.",
+    templateIds: ["bronze-mold-fragment", "bronze-situla-lid", "bronze-drum-fragment"],
+    reward: { cash: 60000, research: 30, reputation: 10 },
+  },
+  {
+    id: "co-loa-earthworks",
+    name: "Cổ Loa Earthworks",
+    era: "van-lang-folk",
+    region: "north",
+    desc: "Monumental defence and its bronze age roots: a citadel in three objects.",
+    templateIds: ["arch-palisade-post", "bronze-drum-fragment", "bronze-socketed-axe"],
+    reward: { cash: 65000, research: 35, reputation: 12 },
+  },
+  {
+    id: "highland-exchange",
+    name: "Đắk Sơn Exchange",
+    era: "trade-network",
+    region: "highlands",
+    desc: "A highland jar, a Chinese coin and a carved tag — trade routes before the coast.",
+    templateIds: ["pot-highland-jar", "coin-wuzhu", "ins-translate-tag"],
+    reward: { cash: 70000, research: 40, reputation: 12 },
+  },
+  {
+    id: "champa-stone",
+    name: "Champa Stone & Script",
+    era: "champa",
+    region: "central",
+    desc: "Two inscriptions and a temple relief: the Champa court in stone.",
+    templateIds: ["ins-champa-stele", "ins-bricks-stamp", "arch-brick-relief"],
+    reward: { cash: 90000, research: 50, reputation: 18 },
+  },
+  {
+    id: "oc-eo-cosmopolitan",
+    name: "Óc Eo Cosmopolitan",
+    era: "trade-network",
+    region: "south",
+    desc: "A Roman coin, a trade-era document and a storage jar from the canal port.",
+    templateIds: ["coin-roman", "manuscript-mulberry", "pot-highland-jar"],
+    reward: { cash: 110000, research: 60, reputation: 22 },
+  },
 ];
 
 export const CATEGORY_LABELS: Record<ArtifactCategory, string> = {

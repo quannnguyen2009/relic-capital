@@ -4,6 +4,8 @@ import { useGame } from "@/game/store";
 import { Panel, ConfidenceBadge, Empty } from "../ui";
 import { CATEGORY_LABELS } from "@/game/data/world";
 import { SITES } from "@/game/data/world";
+import { ASSEMBLAGES, ARTIFACT_TEMPLATES, ERA_LABELS, REGION_LABELS } from "@/game/data/world";
+import { fmt } from "@/game/engine/core";
 import type { PlayerArtifact } from "@/game/engine/types";
 
 export default function ArchiveScreen() {
@@ -28,6 +30,12 @@ export default function ArchiveScreen() {
     return l;
   }, [s.artifacts, q, cat, status, sort]);
 
+  const catalogedTemplates = useMemo(
+    () => new Set(s.artifacts.filter((a) => a.status !== "unanalyzed").map((a) => a.templateId)),
+    [s.artifacts],
+  );
+  const completedAssemblages = s.completedAssemblages ?? [];
+  const [showCollections, setShowCollections] = useState(true);
   const [showCurate, setShowCurate] = useState(false);
   const [curateTitle, setCurateTitle] = useState("Voices of Antiquity: Vietnam's Material Horizons");
   const [curateTheme, setCurateTheme] = useState("Đông Sơn Bronze & Metalurgy");
@@ -136,6 +144,56 @@ export default function ArchiveScreen() {
           </div>
         </div>
       )}
+
+      <Panel
+        title="Museum assemblages"
+        sub={`${completedAssemblages.length}/${ASSEMBLAGES.length} complete — run any analysis on a find to catalog it into its set.`}
+        action={
+          <button className="btn btn-ghost !py-0.5 !px-2 !text-[0.7rem]" onClick={() => setShowCollections((v) => !v)}>
+            {showCollections ? "Hide" : "Show"}
+          </button>
+        }
+      >
+        {showCollections && (
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {ASSEMBLAGES.map((def) => {
+              const owned = def.templateIds.filter((t) => catalogedTemplates.has(t));
+              const rewarded = completedAssemblages.includes(def.id);
+              return (
+                <div key={def.id} className={`panel-elevated p-3 ${rewarded ? "border-[#C28B49]" : ""}`}>
+                  <div className="flex justify-between items-baseline gap-2">
+                    <div className="font-display text-sm text-[#F0E9D9]">{def.name}</div>
+                    <span className={`tag shrink-0 ${rewarded ? "border-[#C28B49] text-[#C28B49]" : "text-[#8a9ea8]"}`}>
+                      {rewarded ? "COMPLETE" : `${owned.length}/${def.templateIds.length}`}
+                    </span>
+                  </div>
+                  <div className="text-[0.6rem] uppercase tracking-wider text-[#8a9ea8] mt-0.5">
+                    {ERA_LABELS[def.era]} · {REGION_LABELS[def.region]}
+                  </div>
+                  <p className="text-[0.7rem] text-[#A2B0B2] mt-1">{def.desc}</p>
+                  <ul className="mt-2 space-y-0.5">
+                    {def.templateIds.map((t) => {
+                      const tpl = ARTIFACT_TEMPLATES.find((x) => x.id === t);
+                      const has = catalogedTemplates.has(t);
+                      return (
+                        <li key={t} className={`text-[0.7rem] flex gap-1 ${has ? "text-[#6D9A83]" : "text-[#8a9ea8]"}`}>
+                          <span>{has ? "[X]" : "[ ]"}</span>
+                          <span className="truncate">{tpl?.name ?? t}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="flex flex-wrap gap-1.5 text-[0.65rem] num mt-2">
+                    <span className="text-[#6D9A83]">+{fmt(def.reward.cash)} đ</span>
+                    <span className="text-[#8fb8d8]">+{def.reward.research} RP</span>
+                    <span className="text-[#C28B49]">+{def.reward.reputation} rep</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
 
       <Panel
         title="Artifact Archive"

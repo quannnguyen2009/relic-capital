@@ -5,8 +5,7 @@ import { Panel, ConfidenceBadge, Empty, Tooltip } from "../ui";
 import { RESEARCH_LABELS, RESEARCH_COSTS } from "@/game/engine/research";
 import { REF_RECORDS } from "@/game/data/systems";
 import type { ResearchOp, PlayerArtifact } from "@/game/engine/types";
-
-const OPS: ResearchOp[] = ["classification", "period", "inscription", "refMatch", "contextual", "anomaly", "confidence"];
+import PixelAvatar from "../PixelAvatar";
 
 export default function LabScreen() {
   const g = useGame();
@@ -68,6 +67,35 @@ export default function LabScreen() {
                 </div>
                 <p className="text-xs text-[#A2B0B2] mb-3">{a.description}</p>
 
+                {/* Lead Doctor Specialist Consultation */}
+                {(() => {
+                  let docId = "dr_linh";
+                  let docName = "Dr. Linh";
+                  let advice = "Cross-reference typology against regional delta finds to eliminate false attributions.";
+                  if (a.category === "inscription") {
+                    docId = "dr_minh";
+                    docName = "Dr. Minh (Epigrapher)";
+                    advice = "Epigraphic scripts hold specific dynastic marks. Prioritize Inscription analysis to date the epigraph.";
+                  } else if (a.condition === "fragile" || a.condition === "poor") {
+                    docId = "dr_lan";
+                    docName = "Dr. Lan (Conservator)";
+                    advice = "Surface oxidation is unstable. Perform conservation treatment before aggressive analysis.";
+                  } else if (a.evidences.length >= 3) {
+                    docId = "dr_tuan";
+                    docName = "Dr. Tuấn (Data Scientist)";
+                    advice = "Bayesian confidence is converging nicely. Run a confidence assessment before publishing.";
+                  }
+                  return (
+                    <div className="mb-3 p-2.5 bg-[#0b1620] border hairline flex items-center gap-3">
+                      <PixelAvatar doctorId={docId} size={36} frame="pixel-box" animated />
+                      <div className="text-xs">
+                        <span className="font-display text-[#c89b3c]">{docName}</span>
+                        <p className="text-[#e8d8b0]/90 italic mt-0.5">&ldquo;{advice}&rdquo;</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Rival Claim Banner */}
                 {activeClaim && (
                   <div className="mb-4 p-3 border-2 border-[#e04040] bg-[#1a0a0a] rounded space-y-2">
@@ -112,28 +140,33 @@ export default function LabScreen() {
                   </div>
                 )}
 
-                <div className="grid sm:grid-cols-2 gap-2 mb-4">
-                  {OPS.map((op) => {
-                    const cost = RESEARCH_COSTS[op];
-                    const disabled = op === "inscription" && a.category !== "inscription";
-                    const timesRun = (a.opsRun ?? {})[op] ?? 0;
-                    const dimLevel = timesRun >= 3 ? "heavy" : timesRun >= 2 ? "moderate" : timesRun >= 1 ? "slight" : null;
-                    return (
-                      <Tooltip key={op} text={disabled ? "Only applies to inscription artifacts." : `${RESEARCH_LABELS[op]} — ${timesRun > 0 ? `run ${timesRun}× before (${dimLevel} diminishing returns)` : "not yet run"}`}>
-                        <button
-                          className={`btn w-full justify-between !text-xs ${timesRun >= 2 ? "btn-ghost opacity-60" : "btn-ghost"}`}
-                          disabled={disabled || s.resources.research < cost.research}
-                          onClick={() => g.analyze(a.uid, op)}
-                        >
-                          <span>{RESEARCH_LABELS[op]}</span>
-                          <span className="num flex items-center gap-1">
-                            {timesRun > 0 && <span className="text-[0.55rem] text-[#A2B0B2]">×{timesRun}</span>}
-                            <span className="text-[#C28B49]">{cost.research} RP</span>
-                          </span>
-                        </button>
-                      </Tooltip>
-                    );
-                  })}
+                {/* Streamlined Core Research Actions */}
+                <div className="space-y-2 mb-4">
+                  <div className="text-[0.7rem] uppercase tracking-wider text-[#A2B0B2] font-bold" style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}>
+                    RESEARCH METHODOLOGY
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {(a.category === "inscription" ? ["typology", "material", "inscription"] as ResearchOp[] : ["typology", "material"] as ResearchOp[]).map((op) => {
+                      const cost = RESEARCH_COSTS[op];
+                      const timesRun = (a.opsRun ?? {})[op] ?? 0;
+                      const opDoc = op === "inscription" ? "Dr. Minh" : op === "material" ? "Dr. Lan" : "Dr. Linh";
+                      return (
+                        <Tooltip key={op} text={`${RESEARCH_LABELS[op]} — Lead: ${opDoc}. ${timesRun > 0 ? `Run ${timesRun}× before` : "Initial analysis"}`}>
+                          <button
+                            className="btn btn-ghost w-full justify-between !py-2.5 !text-xs border hairline hover:border-[#c89b3c]"
+                            disabled={s.resources.research < cost.research}
+                            onClick={() => g.analyze(a.uid, op)}
+                          >
+                            <span className="flex items-center gap-2 font-medium">
+                              <span>{op === "inscription" ? "📜" : op === "material" ? "🧪" : "🔬"}</span>
+                              <span>{RESEARCH_LABELS[op]}</span>
+                            </span>
+                            <span className="num text-[#C28B49] font-bold">{cost.research} RP</span>
+                          </button>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 border-t hairline pt-3">
@@ -209,20 +242,26 @@ export default function LabScreen() {
       {recentReports.length > 0 && (
         <Panel title="Recent analysis reports" sub="Every report labels its engine: 'rule-based' = local heuristic simulation, not an external AI service.">
           <div className="space-y-3">
-            {recentReports.map((r, i) => (
-              <div key={i} className="panel-elevated p-3 text-sm">
-                <div className="flex flex-wrap gap-2 items-center mb-1">
-                  <span className="tag">{RESEARCH_LABELS[r.op]}</span>
-                  <span className="tag">engine: {r.engine}</span>
-                  <span className="tag num">conf {Math.round(r.confidence * 100)}%</span>
+            {recentReports.map((r, i) => {
+              const opDoc = r.op === "inscription" ? "dr_minh" : (r.op === "anomaly" || r.op === "confidence") ? "dr_tuan" : (r.op === "period" || r.op === "contextual") ? "dr_mai" : "dr_linh";
+              return (
+                <div key={i} className="panel-elevated p-3 text-sm flex gap-3 items-start">
+                  <PixelAvatar doctorId={opDoc} size={36} frame="pixel-box" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap gap-2 items-center mb-1">
+                      <span className="tag">{RESEARCH_LABELS[r.op]}</span>
+                      <span className="tag">engine: {r.engine}</span>
+                      <span className="tag num">conf {Math.round(r.confidence * 100)}%</span>
+                    </div>
+                    <p className="text-[#F0E9D9]">{r.interpretation}</p>
+                    <ul className="text-xs text-[#6D9A83] mt-1 list-disc list-inside">{r.supporting.map((x, j) => <li key={j}>{x}</li>)}</ul>
+                    <ul className="text-xs text-[#D66D67] mt-1 list-disc list-inside">{r.missing.map((x, j) => <li key={j}>{x}</li>)}</ul>
+                    <p className="text-xs text-[#A2B0B2] mt-1">Next step: {r.nextStep}</p>
+                    {r.sources.length > 0 && <p className="text-[0.65rem] text-[#A2B0B2]/70 mt-1">Sources (local reference index): {r.sources.join("; ")}</p>}
+                  </div>
                 </div>
-                <p className="text-[#F0E9D9]">{r.interpretation}</p>
-                <ul className="text-xs text-[#6D9A83] mt-1 list-disc list-inside">{r.supporting.map((x, j) => <li key={j}>{x}</li>)}</ul>
-                <ul className="text-xs text-[#D66D67] mt-1 list-disc list-inside">{r.missing.map((x, j) => <li key={j}>{x}</li>)}</ul>
-                <p className="text-xs text-[#A2B0B2] mt-1">Next step: {r.nextStep}</p>
-                {r.sources.length > 0 && <p className="text-[0.65rem] text-[#A2B0B2]/70 mt-1">Sources (local reference index): {r.sources.join("; ")}</p>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Panel>
       )}

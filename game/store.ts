@@ -4,8 +4,8 @@ import type { GameState, ExpeditionPlan, ResearchOp, Difficulty, RoleId, RegionI
 import { newGame } from "../game/engine/newGame";
 import {
   advanceDay, startExpedition, validatePlan, estimateExpedition, advanceExpeditionDay,
-  resolveExpeditionDecision, evaluateAchievements, evaluateCampaign, runwayDays, spend, earn,
-  resolveRivalClaim,
+  resolveExpeditionDecision, evaluateAchievements, evaluateCampaign, evaluateAssemblages,
+  runwayDays, spend, earn, resolveRivalClaim,
 } from "../game/engine/core";
 import { runAnalysis, verifyArtifact, publishArtifact, digitizeArtifact, conserveArtifact } from "../game/engine/research";
 import { initMarket, buy, sell, priceOf } from "../game/engine/market";
@@ -42,7 +42,8 @@ export const STEP_NAV: Record<number, Screen> = {
 export type Modal =
   | { kind: "tutorial" } | { kind: "event"; eventId: string }
   | { kind: "xp-report" } | { kind: "confirm-reset" }
-  | { kind: "achievement"; ids: string[] } | null;
+  | { kind: "achievement"; ids: string[] }
+  | { kind: "assemblage"; ids: string[] } | null;
 
 interface Store {
   s: GameState | null;
@@ -157,6 +158,7 @@ export const useGame = create<Store>((set, get) => ({
       // Backwards-compat: initialize new fields missing from old saves
       if (!res.state.rivalClaims) res.state.rivalClaims = [];
       if (res.state.discoveryStreak === undefined) res.state.discoveryStreak = 0;
+      if (res.state.completedAssemblages === undefined) res.state.completedAssemblages = [];
       for (const m of res.state.staff) {
         if (m.seniorityDays === undefined) m.seniorityDays = 0;
       }
@@ -193,6 +195,9 @@ export const useGame = create<Store>((set, get) => ({
 
     // random site event
     maybeSpawnEvent(s);
+    // museum collection completions
+    const newSets = evaluateAssemblages(s);
+    if (newSets.length) playPublishSound();
     // achievements
     const ach = evaluateAchievements(s);
     if (ach.length) {
@@ -201,7 +206,14 @@ export const useGame = create<Store>((set, get) => ({
     // campaign chapter progression
     evaluateCampaign(s);
     saveGame(s);
-    set({ s: { ...s }, modal: report ? { kind: "xp-report" } : ach.length ? { kind: "achievement", ids: ach } : get().modal, lastSaveAt: Date.now() });
+    const modal = report
+      ? { kind: "xp-report" as const }
+      : newSets.length
+        ? { kind: "assemblage" as const, ids: newSets }
+        : ach.length
+          ? { kind: "achievement" as const, ids: ach }
+          : get().modal;
+    set({ s: { ...s }, modal, lastSaveAt: Date.now() });
   },
 
   setPlan: (p) => {
@@ -247,8 +259,16 @@ export const useGame = create<Store>((set, get) => ({
     if (!s) return { ok: false, reason: "No game." };
     const r = runAnalysis(s, uid, op);
     if (r.ok) {
+      const newSets = evaluateAssemblages(s);
+      if (newSets.length) playPublishSound();
+      const ach = evaluateAchievements(s);
       saveGame(s);
-      set({ s: { ...s } });
+      const modal = newSets.length
+        ? { kind: "assemblage" as const, ids: newSets }
+        : ach.length
+          ? { kind: "achievement" as const, ids: ach }
+          : get().modal;
+      set({ s: { ...s }, modal });
     }
     return r;
   },

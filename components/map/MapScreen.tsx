@@ -8,20 +8,17 @@ import { REGIONS, SITES, ERA_LABELS, CATEGORY_LABELS } from "@/game/data/world";
 import type { Site, ExpeditionPlan, RegionId } from "@/game/engine/types";
 import { playDiscoverySound, playCoinSound } from "@/game/sound";
 import {
-  MAP_DIMENSIONS,
-  VIETNAM_MAINLAND_PATH,
-  VIETNAM_ISLANDS,
-  NEIGHBORS,
-  RIVERS,
-  RELIEF_TERRAIN,
-  HISTORICAL_ROUTES,
-  PARACEL_ISLANDS,
-  SPRATLY_ISLANDS,
-  GRATICULE,
-  SITE_COORDS,
-  HANOI_HQ,
-  REGION_LABELS,
-} from "./mapData";
+  PIXEL_MAP_DIMS,
+  VIETNAM_STEPPED_PATH,
+  REGION_BIOMES,
+  PIXEL_SITE_COORDS,
+  PIXEL_HANOI_HQ,
+  PIXEL_ISLANDS,
+  PIXEL_ARCHIPELAGOS,
+  PIXEL_RIVERS,
+  PIXEL_PEAKS,
+  PIXEL_TREES,
+} from "./PixelMapData";
 
 function defaultPlan(siteId: string): ExpeditionPlan {
   return { siteId, workers: 4, days: 4, equipment: [], survey: true, careful: true, objective: "balanced" };
@@ -35,11 +32,6 @@ export default function MapScreen() {
   const [selectedRegion, setSelectedRegion] = useState<RegionId | "all">("all");
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
 
-  // Map layer visibility toggles
-  const [showTopography, setShowTopography] = useState(true);
-  const [showRoutes, setShowRoutes] = useState(true);
-  const [showGraticule, setShowGraticule] = useState(true);
-
   // Filtered sites for list
   const filteredSites = useMemo(() => {
     if (selectedRegion === "all") return SITES;
@@ -52,31 +44,37 @@ export default function MapScreen() {
   const activeExpeditionTarget = useMemo(() => {
     if (!s.expedition || s.expedition.phase !== "active") return null;
     const targetSiteId = s.expedition.plan.siteId;
-    return SITE_COORDS[targetSiteId] || null;
+    return PIXEL_SITE_COORDS[targetSiteId] || null;
   }, [s.expedition]);
 
   const isDrySeason = (s.day % 60) < 30;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Panel
-        title="Exploration Map"
-        sub="High-precision archaeological survey of Vietnam and surrounding maritime realms. Real historical landscapes and prehistoric contexts are mapped with authenticity. Click a site marker to inspect."
+        title="Overworld Map"
+        sub="Pixel art exploration theater of Vietnam. Select excavation grids, monitor active expeditions, and unlock regional field permits."
       >
-        {/* Map Header & Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3 text-xs">
+        {/* Header HUD: Region Filters & Season Badge */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 mb-3 text-xs">
           {/* Region Filter Chips */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[#A2B0B2] text-[0.7rem] uppercase tracking-wider mr-1">Region:</span>
+            <span
+              className="text-[#A2B0B2] text-[0.68rem] uppercase tracking-wider mr-1"
+              style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}
+            >
+              ZONE:
+            </span>
             <button
               onClick={() => setSelectedRegion("all")}
-              className={`px-2 py-0.5 rounded text-[0.7rem] transition-colors border ${
+              className={`px-2 py-1 text-[0.68rem] transition-colors border ${
                 selectedRegion === "all"
-                  ? "bg-[#C28B49] text-[#121c24] font-semibold border-[#C28B49]"
-                  : "bg-[#0f1d27] text-[#A2B0B2] border-transparent hover:border-[#2a4355]"
+                  ? "bg-[#C28B49] text-[#0a0e14] font-bold border-[#C28B49] shadow-sm"
+                  : "bg-[#0f1d27] text-[#A2B0B2] border-[#22394a] hover:border-[#C28B49]/50"
               }`}
+              style={{ fontFamily: "var(--font-pixel)", fontSize: "0.48rem" }}
             >
-              All Regions ({SITES.length})
+              ALL ({SITES.length})
             </button>
             {REGIONS.map((r) => {
               const isUnlocked = s.regionUnlocked.includes(r.id);
@@ -87,688 +85,647 @@ export default function MapScreen() {
                   onClick={() => setSelectedRegion(r.id)}
                   onMouseEnter={() => setHoveredRegion(r.id)}
                   onMouseLeave={() => setHoveredRegion(null)}
-                  className={`px-2 py-0.5 rounded text-[0.7rem] transition-colors border flex items-center gap-1 ${
+                  className={`px-2 py-1 text-[0.68rem] transition-colors border flex items-center gap-1.5 ${
                     isSelected
-                      ? "bg-[#C28B49] text-[#121c24] font-semibold border-[#C28B49]"
+                      ? "bg-[#C28B49] text-[#0a0e14] font-bold border-[#C28B49]"
                       : isUnlocked
                       ? "bg-[#0f1d27] text-[#A2B0B2] border-[#22394a] hover:border-[#C28B49]/50"
-                      : "bg-[#0a141c] text-[#556b7a] border-transparent hover:border-[#1e303d]"
+                      : "bg-[#091219] text-[#556b7a] border-transparent hover:border-[#1e303d]"
                   }`}
+                  style={{ fontFamily: "var(--font-pixel)", fontSize: "0.48rem" }}
                 >
-                  <span>{r.name}</span>
-                  {!isUnlocked && <span className="text-[0.6rem] opacity-60">🔒</span>}
+                  <span>{r.name.replace(" Vietnam", "").replace("River ", "")}</span>
+                  {!isUnlocked && <span className="text-[0.55rem] text-[#e04040]">🔒</span>}
                 </button>
               );
             })}
           </div>
 
-          {/* Layer toggles & Monsoon Badge */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center bg-[#0a1620] p-0.5 rounded border hairline text-[0.68rem]">
-              <button
-                onClick={() => setShowTopography(!showTopography)}
-                className={`px-2 py-0.5 rounded transition-colors ${
-                  showTopography ? "bg-[#183142] text-[#F0E9D9]" : "text-[#708896] hover:text-[#A2B0B2]"
-                }`}
-                title="Toggle mountain relief and delta contours"
-              >
-                🏔 Topography
-              </button>
-              <button
-                onClick={() => setShowRoutes(!showRoutes)}
-                className={`px-2 py-0.5 rounded transition-colors ${
-                  showRoutes ? "bg-[#183142] text-[#F0E9D9]" : "text-[#708896] hover:text-[#A2B0B2]"
-                }`}
-                title="Toggle ancient Maritime Silk Road sea lanes"
-              >
-                ⛵ Trade Routes
-              </button>
-              <button
-                onClick={() => setShowGraticule(!showGraticule)}
-                className={`px-2 py-0.5 rounded transition-colors ${
-                  showGraticule ? "bg-[#183142] text-[#F0E9D9]" : "text-[#708896] hover:text-[#A2B0B2]"
-                }`}
-                title="Toggle geographic grid and oceanic reefs"
-              >
-                🧭 Graticule
-              </button>
-            </div>
-
-            {/* Season Badge */}
+          {/* Season & Expedition Status Badge */}
+          <div className="flex items-center gap-2">
+            {s.expedition?.phase === "active" && (
+              <div className="bg-[#12281e] border border-[#4da87a] px-2.5 py-1 text-[0.65rem] text-[#6ee7b7] flex items-center gap-1.5 animate-pulse">
+                <span>⛏️</span>
+                <span style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}>
+                  DIG IN PROGRESS · D{s.expedition.elapsedDays}/{s.expedition.totalDays}
+                </span>
+              </div>
+            )}
             <Tooltip
               text={
                 isDrySeason
-                  ? "Northeast Monsoon (Mùa Khô): Prevailing winds blow from NE across Biển Đông. Safer coastal transit and river excavation."
-                  : "Southwest Monsoon (Mùa Mưa): Heavy tropical squalls and monsoon currents. Higher environmental mishap risk."
+                  ? "Northeast Monsoon (Mùa Khô): Dry winds across Biển Đông. Safer coastal transit and river excavation."
+                  : "Southwest Monsoon (Mùa Mưa): Tropical rains and river flooding. Higher preservation risk."
               }
             >
-              <div className="bg-[#0b1822] border hairline px-2.5 py-1 rounded text-xs text-[#A2B0B2] flex items-center gap-1.5 cursor-help">
-                <span className="text-[#C28B49]">{isDrySeason ? "☀️" : "🌦"}</span>
-                <span className="text-[0.7rem] font-medium text-[#F0E9D9]">
-                  {isDrySeason ? "Mùa Khô (NE Monsoon)" : "Mùa Mưa (SW Monsoon)"}
+              <div
+                className="bg-[#0b1822] border hairline px-2.5 py-1 text-xs text-[#A2B0B2] flex items-center gap-1.5 cursor-help"
+                style={{ fontFamily: "var(--font-pixel)", fontSize: "0.48rem" }}
+              >
+                <span className="text-[#C28B49]">{isDrySeason ? "☀️" : "🌧️"}</span>
+                <span className="text-[#F0E9D9]">
+                  {isDrySeason ? "MÙA KHÔ (DRY)" : "MÙA MƯA (MONSOON)"}
                 </span>
               </div>
             </Tooltip>
           </div>
         </div>
 
-        {/* The Cartographic Frame */}
-        <div className="relative rounded-lg border hairline overflow-hidden bg-[#07111a] shadow-2xl transition-all duration-300">
-          <div className="w-full relative" style={{ aspectRatio: "850 / 1000", maxHeight: "760px", minHeight: "520px" }}>
+        {/* The 16-Bit Pixel Art Overworld Canvas */}
+        <div className="relative border-2 border-[#c89b3c]/60 overflow-hidden bg-[#07131e] shadow-2xl">
+          {/* Subtle CRT Scanlines Overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none z-20"
+            style={{
+              background:
+                "repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px)",
+            }}
+          />
+
+          <div
+            className="w-full relative"
+            style={{
+              aspectRatio: `${PIXEL_MAP_DIMS.width} / ${PIXEL_MAP_DIMS.height}`,
+              maxHeight: "740px",
+              minHeight: "480px",
+            }}
+          >
             <svg
-              viewBox={`0 0 ${MAP_DIMENSIONS.width} ${MAP_DIMENSIONS.height}`}
+              viewBox={`0 0 ${PIXEL_MAP_DIMS.width} ${PIXEL_MAP_DIMS.height}`}
               className="absolute inset-0 w-full h-full select-none"
               preserveAspectRatio="xMidYMid meet"
+              shapeRendering="crispEdges"
+              style={{ imageRendering: "pixelated" }}
             >
               <defs>
-                {/* Visual styling and keyframe animations */}
+                {/* Pixel scanline & animation keyframes */}
                 <style>{`
-                  @keyframes expeditionPulse {
-                    0% { stroke-dashoffset: 40; }
+                  @keyframes marchDots {
+                    0% { stroke-dashoffset: 16; }
                     100% { stroke-dashoffset: 0; }
                   }
-                  @keyframes beaconRadar {
-                    0% { r: 5; opacity: 0.9; }
-                    100% { r: 18; opacity: 0; }
+                  @keyframes reticlePulse {
+                    0%, 100% { transform: scale(1); opacity: 0.9; }
+                    50% { transform: scale(1.15); opacity: 1; }
                   }
-                  @keyframes waypointPulse {
-                    0%, 100% { transform: scale(1); opacity: 0.85; }
-                    50% { transform: scale(1.3); opacity: 1; }
+                  @keyframes waveDrift {
+                    0%, 100% { transform: translateX(0); }
+                    50% { transform: translateX(4px); }
                   }
-                  .expedition-vector {
-                    animation: expeditionPulse 1.8s linear infinite;
+                  .march-route {
+                    animation: marchDots 1.2s linear infinite;
                   }
-                  .beacon-pulse {
-                    animation: beaconRadar 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+                  .target-reticle {
+                    animation: reticlePulse 1.8s ease-in-out infinite;
+                  }
+                  .pixel-wave {
+                    animation: waveDrift 3s ease-in-out infinite;
                   }
                 `}</style>
 
-                {/* Ocean Background Gradient */}
-                <radialGradient id="oceanBathymetry" cx="65%" cy="45%" r="75%">
-                  <stop offset="0%" stopColor="#0c1d29" />
-                  <stop offset="45%" stopColor="#091621" />
-                  <stop offset="100%" stopColor="#050e15" />
-                </radialGradient>
-
-                {/* Vietnam Landmass Gradient */}
-                <linearGradient id="vietnamLandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1a3240" />
-                  <stop offset="35%" stopColor="#162a36" />
-                  <stop offset="70%" stopColor="#13232e" />
-                  <stop offset="100%" stopColor="#0f1d26" />
-                </linearGradient>
-
-                {/* Neighboring Continents Gradient */}
-                <linearGradient id="neighborLandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#111f28" />
-                  <stop offset="100%" stopColor="#0b151c" />
-                </linearGradient>
-
-                {/* River Glow Gradient */}
-                <linearGradient id="riverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#3c6b87" />
-                  <stop offset="100%" stopColor="#538fae" />
-                </linearGradient>
-
-                {/* Shallows / Coastal Shelf Glow Filter */}
-                <filter id="coastalGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="6" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-
-                {/* Pin Shadow Filter */}
-                <filter id="pinShadow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000000" floodOpacity="0.8" />
-                </filter>
-
-                {/* Fine Graticule Dot Pattern */}
-                <pattern id="graticuleDots" width="20" height="20" patternUnits="userSpaceOnUse">
-                  <circle cx="10" cy="10" r="0.6" fill="#1b2d3c" opacity="0.6" />
+                {/* Ocean Grid Pattern */}
+                <pattern id="pixelOceanPattern" width="32" height="32" patternUnits="userSpaceOnUse">
+                  <rect width="32" height="32" fill="#091824" />
+                  <rect x="0" y="0" width="32" height="1" fill="#0c1f2e" />
+                  <rect x="0" y="0" width="1" height="32" fill="#0c1f2e" />
+                  {/* Subtle 2x1 wave sparks */}
+                  <rect x="6" y="14" width="3" height="1" fill="#143247" />
+                  <rect x="22" y="28" width="4" height="1" fill="#143247" />
                 </pattern>
-
-                {/* Map Frame Clip with rounded corners */}
-                <clipPath id="mapFrameClip">
-                  <rect x="0" y="0" width={MAP_DIMENSIONS.width} height={MAP_DIMENSIONS.height} rx="8" />
-                </clipPath>
               </defs>
 
-              {/* Clipped Cartographic Group */}
-              <g clipPath="url(#mapFrameClip)">
-                {/* 1. Base Nautical Ocean Background */}
-                <rect width={MAP_DIMENSIONS.width} height={MAP_DIMENSIONS.height} fill="url(#oceanBathymetry)" />
-                <rect width={MAP_DIMENSIONS.width} height={MAP_DIMENSIONS.height} fill="url(#graticuleDots)" opacity="0.75" />
+              {/* 1. Deep Ocean Background (Biển Đông) */}
+              <rect width={PIXEL_MAP_DIMS.width} height={PIXEL_MAP_DIMS.height} fill="url(#pixelOceanPattern)" />
 
-                {/* 2. Bathymetry / Coastal Shelf Depth Contours */}
-                <g opacity="0.5">
-                  <path d={VIETNAM_MAINLAND_PATH} fill="none" stroke="#1d384c" strokeWidth="18" filter="url(#coastalGlow)" />
-                  <path d={VIETNAM_MAINLAND_PATH} fill="none" stroke="#2a4f6a" strokeWidth="6" opacity="0.6" />
-                  <path d={NEIGHBORS.hainan} fill="none" stroke="#1d384c" strokeWidth="12" filter="url(#coastalGlow)" />
-                  <path d={NEIGHBORS.cambodia} fill="none" stroke="#1d384c" strokeWidth="12" filter="url(#coastalGlow)" />
-                </g>
+              {/* 2. Coastal Shelf / Shallow Water halo around Vietnam */}
+              <polygon
+                points={VIETNAM_STEPPED_PATH}
+                fill="none"
+                stroke="#15364a"
+                strokeWidth="20"
+                strokeLinejoin="miter"
+              />
+              <polygon
+                points={VIETNAM_STEPPED_PATH}
+                fill="none"
+                stroke="#1e4d68"
+                strokeWidth="8"
+                strokeLinejoin="miter"
+              />
 
-                {/* 3. Graticule Lines (Parallels & Meridians) */}
-                {showGraticule && (
-                  <g opacity="0.6">
-                    {GRATICULE.parallels.map((p) => (
-                      <g key={p.lat}>
-                        <line
-                          x1="0"
-                          y1={p.y}
-                          x2={MAP_DIMENSIONS.width}
-                          y2={p.y}
-                          stroke="#1a3142"
-                          strokeWidth="0.6"
-                          strokeDasharray="3,3"
-                        />
-                        <text
-                          x="10"
-                          y={p.y - 4}
-                          fill="#446479"
-                          fontSize="9"
-                          fontFamily="monospace"
-                          opacity="0.8"
-                        >
-                          {p.label}
-                        </text>
-                      </g>
-                    ))}
-                    {GRATICULE.meridians.map((m) => (
-                      <g key={m.lon}>
-                        <line
-                          x1={m.x}
-                          y1="0"
-                          x2={m.x}
-                          y2={MAP_DIMENSIONS.height}
-                          stroke="#1a3142"
-                          strokeWidth="0.6"
-                          strokeDasharray="3,3"
-                        />
-                        <text
-                          x={m.x + 4}
-                          y="18"
-                          fill="#446479"
-                          fontSize="9"
-                          fontFamily="monospace"
-                          opacity="0.8"
-                        >
-                          {m.label}
-                        </text>
-                      </g>
-                    ))}
+              {/* 3. Mainland Vietnam Base Silhouette */}
+              <polygon
+                points={VIETNAM_STEPPED_PATH}
+                fill="#162e24"
+                stroke="#3d7e5d"
+                strokeWidth="2"
+                strokeLinejoin="miter"
+              />
+
+              {/* 4. Regional Biome Layers */}
+              {Object.entries(REGION_BIOMES).map(([regId, biome]) => {
+                const isHovered = activeRegion === regId;
+                const isUnlocked = s.regionUnlocked.includes(regId as RegionId);
+                return (
+                  <g key={regId} className="transition-opacity duration-200">
+                    <polygon
+                      points={biome.points}
+                      fill={isHovered ? "#2b6048" : isUnlocked ? biome.color : "#12201b"}
+                      opacity={isHovered ? 0.95 : isUnlocked ? 0.85 : 0.6}
+                      stroke={isHovered ? "#f5d26d" : biome.borderColor}
+                      strokeWidth={isHovered ? 2 : 1}
+                      strokeLinejoin="miter"
+                      className="cursor-pointer"
+                      onClick={() => setSelectedRegion(regId as RegionId)}
+                      onMouseEnter={() => setHoveredRegion(regId)}
+                      onMouseLeave={() => setHoveredRegion(null)}
+                    />
                   </g>
-                )}
+                );
+              })}
 
-                {/* 4. Neighboring Continents & Landmasses */}
-                <g id="neighborCountries">
-                  {/* China Mainland */}
-                  <path d={NEIGHBORS.china} fill="url(#neighborLandGrad)" stroke="#233a4c" strokeWidth="0.8" opacity="0.9" />
-                  {/* Hainan Island */}
-                  <path d={NEIGHBORS.hainan} fill="url(#neighborLandGrad)" stroke="#325066" strokeWidth="0.9" opacity="0.95" />
-                  {/* Laos */}
-                  <path d={NEIGHBORS.laos} fill="url(#neighborLandGrad)" stroke="#233a4c" strokeWidth="0.8" opacity="0.9" />
-                  {/* Cambodia */}
-                  <path d={NEIGHBORS.cambodia} fill="url(#neighborLandGrad)" stroke="#233a4c" strokeWidth="0.8" opacity="0.9" />
-                  {/* Thailand */}
-                  <path d={NEIGHBORS.thailand} fill="url(#neighborLandGrad)" stroke="#233a4c" strokeWidth="0.8" opacity="0.9" />
-
-                  {/* Neighbor labels */}
-                  <text x="560" y="80" fill="#314e62" fontSize="12" letterSpacing="0.15em" fontFamily="serif" textAnchor="middle">
-                    CHINA (TRUNG HOA)
-                  </text>
-                  <text x="568" y="295" fill="#3e6078" fontSize="10" letterSpacing="0.1em" fontFamily="serif" textAnchor="middle">
-                    ĐẢO HẢI NAM
-                  </text>
-                  <text x="568" y="309" fill="#2d495c" fontSize="8" textAnchor="middle">
-                    (Hainan Dao)
-                  </text>
-                  <text x="210" y="320" fill="#314e62" fontSize="11" letterSpacing="0.15em" fontFamily="serif" textAnchor="middle">
-                    LAOS (VƯƠNG QUỐC LÀO)
-                  </text>
-                  <text x="180" y="710" fill="#314e62" fontSize="11" letterSpacing="0.15em" fontFamily="serif" textAnchor="middle">
-                    CAMBODIA (CHÂN LẠP)
-                  </text>
-                  <text x="90" y="580" fill="#2a4354" fontSize="10" letterSpacing="0.12em" fontFamily="serif" textAnchor="middle">
-                    SIAM (XIÊM LA)
-                  </text>
-                </g>
-
-                {/* 5. Ancient Maritime Silk Road Trade Routes */}
-                {showRoutes && (
-                  <g id="historicalTradeRoutes" opacity="0.65">
-                    {HISTORICAL_ROUTES.map((route) => (
-                      <path
-                        key={route.id}
-                        d={route.d}
-                        fill="none"
-                        stroke="#C28B49"
-                        strokeWidth="1.2"
-                        strokeDasharray="4,4"
-                        opacity="0.6"
-                      />
-                    ))}
-                    {/* Trade route markers / subtle sailing caravel hint */}
-                    <text x="180" y="880" fill="#C28B49" fontSize="8.5" fontFamily="serif" letterSpacing="0.08em" opacity="0.8">
-                      ⛵ Đường biển Phù Nam — Mã Lai
-                    </text>
-                    <text x="520" y="620" fill="#C28B49" fontSize="8.5" fontFamily="serif" letterSpacing="0.08em" opacity="0.8">
-                      ⛵ Hải trình Champa — Biển Đông
-                    </text>
-                  </g>
-                )}
-
-                {/* 6. Vietnam Mainland Landmass */}
-                <g id="vietnamLandmass">
-                  {/* Subtle Region Highlight Wash */}
-                  {activeRegion && (
-                    <g opacity="0.25">
-                      {activeRegion === "north" && <circle cx="280" cy="140" r="110" fill="#6D9A83" filter="url(#coastalGlow)" />}
-                      {activeRegion === "delta" && <circle cx="360" cy="210" r="75" fill="#C28B49" filter="url(#coastalGlow)" />}
-                      {activeRegion === "central" && <path d="M 330,300 Q 420,440 500,550 L 440,560 Q 360,440 280,310 Z" fill="#6D9A83" filter="url(#coastalGlow)" />}
-                      {activeRegion === "highlands" && <circle cx="450" cy="670" r="90" fill="#B9654B" filter="url(#coastalGlow)" />}
-                      {activeRegion === "south" && <circle cx="330" cy="880" r="105" fill="#6D9A83" filter="url(#coastalGlow)" />}
-                    </g>
-                  )}
-
-                  {/* Primary Mainland Geometry */}
-                  <path
-                    d={VIETNAM_MAINLAND_PATH}
-                    fill="url(#vietnamLandGrad)"
-                    stroke="#43728f"
-                    strokeWidth="1.2"
-                    className="transition-all duration-300"
+              {/* 5. Pixel Rivers (Sông Hồng, Sông Thu Bồn, Sông Cửu Long) */}
+              <g id="pixelRivers">
+                {PIXEL_RIVERS.map((points, idx) => (
+                  <polyline
+                    key={idx}
+                    points={points}
+                    fill="none"
+                    stroke="#38bdf8"
+                    strokeWidth="2"
+                    strokeLinejoin="bevel"
+                    opacity="0.85"
                   />
+                ))}
+              </g>
 
-                  {/* Major Coastal Islands (Phú Quốc, Côn Đảo, Cát Bà, Lý Sơn, Phú Quý) */}
-                  {VIETNAM_ISLANDS.map((isle, i) => (
-                    <g key={i}>
-                      <path d={isle.d} fill="url(#vietnamLandGrad)" stroke="#43728f" strokeWidth="0.9" />
-                      {isle.name !== "Island" && (
-                        <text
-                          x={isle.center[0] + 8}
-                          y={isle.center[1] + 3}
-                          fill="#7da0b3"
-                          fontSize="7.5"
-                          fontFamily="sans-serif"
-                          opacity="0.85"
-                        >
-                          {isle.name}
-                        </text>
-                      )}
-                    </g>
-                  ))}
-                </g>
-
-                {/* 7. Topographical Relief (Mountain ranges & alluvial river deltas) */}
-                {showTopography && (
-                  <g id="topographyRelief" opacity="0.75" pointerEvents="none">
-                    {/* Northwest Mountains / Hoàng Liên Sơn */}
-                    <path d={RELIEF_TERRAIN.northwest} fill="#1c3647" opacity="0.45" />
-                    <text x="210" y="120" fill="#466f87" fontSize="8" fontFamily="serif" letterSpacing="0.08em">
-                      ▲ Hoàng Liên Sơn (Fansipan)
-                    </text>
-
-                    {/* Annamite Range / Dãy Trường Sơn */}
-                    <path d={RELIEF_TERRAIN.truongSon} fill="#183140" opacity="0.5" />
-                    <text
-                      x="355"
-                      y="435"
-                      fill="#466f87"
-                      fontSize="8"
-                      fontFamily="serif"
-                      letterSpacing="0.1em"
-                      transform="rotate(50 355 435)"
-                    >
-                      ▲ DÃY TRƯỜNG SƠN (ANNAMITE RANGE)
-                    </text>
-
-                    {/* Central Highlands Plateau (Tây Nguyên) */}
-                    <path d={RELIEF_TERRAIN.highlands} fill="#1c3647" opacity="0.4" />
-                    <text x="445" y="660" fill="#466f87" fontSize="8" fontFamily="serif" letterSpacing="0.08em" textAnchor="middle">
-                      Cao nguyên Tây Nguyên
-                    </text>
-
-                    {/* Red River Delta (Alluvial plain) */}
-                    <path d={RELIEF_TERRAIN.redRiverDelta} fill="#183d38" opacity="0.35" />
-
-                    {/* Mekong River Delta (Alluvial plain) */}
-                    <path d={RELIEF_TERRAIN.mekongDelta} fill="#183d38" opacity="0.35" />
+              {/* 6. Pixel Mountain Peaks (Hoàng Liên Sơn & Trường Sơn) */}
+              <g id="pixelPeaks" fill="#475569" stroke="#1e293b" strokeWidth="1">
+                {PIXEL_PEAKS.map((p, i) => (
+                  <g key={i}>
+                    {/* Stepped pixel mountain icon */}
+                    <polygon points={`${p.x},${p.y - 7} ${p.x - 7},${p.y + 3} ${p.x + 7},${p.y + 3}`} fill="#475569" />
+                    <polygon points={`${p.x},${p.y - 7} ${p.x},${p.y + 3} ${p.x + 7},${p.y + 3}`} fill="#334155" />
+                    {/* Snow / stone tip */}
+                    <polygon points={`${p.x},${p.y - 7} ${p.x - 2},${p.y - 3} ${p.x + 2},${p.y - 3}`} fill="#e2e8f0" />
                   </g>
-                )}
+                ))}
+              </g>
 
-                {/* 8. Hydrology / Rivers Network */}
-                <g id="riverSystems">
-                  {RIVERS.map((r, i) => (
-                    <path
-                      key={i}
-                      d={r.d}
-                      fill="none"
-                      stroke="url(#riverGrad)"
-                      strokeWidth={r.name.includes("Mekong") || r.name.includes("Hong") ? "1.4" : "0.9"}
-                      opacity="0.8"
-                    />
-                  ))}
-                  {/* River Labels */}
-                  <text x="360" y="215" fill="#4a7d9b" fontSize="7.5" fontStyle="italic">S. Hồng</text>
-                  <text x="300" y="810" fill="#4a7d9b" fontSize="7.5" fontStyle="italic">S. Tiền & S. Hậu</text>
-                </g>
-
-                {/* 9. Oceanic Archipelagos (Hoàng Sa & Trường Sa) */}
-                {showGraticule && (
-                  <g id="archipelagos">
-                    {/* Quần đảo Hoàng Sa (Paracels) */}
-                    <g id="hoangSaGroup">
-                      <rect x="660" y="420" width="130" height="90" fill="#0c1f2e" opacity="0.35" rx="6" stroke="#254359" strokeWidth="0.6" strokeDasharray="2,2" />
-                      <text x="725" y="438" fill="#F0E9D9" fontSize="10" fontWeight="bold" fontFamily="serif" textAnchor="middle" letterSpacing="0.08em">
-                        QUẦN ĐẢO HOÀNG SA
-                      </text>
-                      <text x="725" y="450" fill="#5b829b" fontSize="7.5" textAnchor="middle">
-                        (Paracel Islands)
-                      </text>
-                      {PARACEL_ISLANDS.map((isle, i) => (
-                        <g key={i}>
-                          <circle cx={isle.pos[0]} cy={isle.pos[1]} r={isle.r} fill="#6D9A83" stroke="#F0E9D9" strokeWidth="0.6" />
-                          <circle cx={isle.pos[0]} cy={isle.pos[1]} r={isle.r + 3} fill="none" stroke="#6D9A83" strokeWidth="0.4" opacity="0.5" strokeDasharray="1,1" />
-                        </g>
-                      ))}
-                    </g>
-
-                    {/* Quần đảo Trường Sa (Spratlys) */}
-                    <g id="truongSaGroup">
-                      <rect x="660" y="780" width="155" height="150" fill="#0c1f2e" opacity="0.35" rx="6" stroke="#254359" strokeWidth="0.6" strokeDasharray="2,2" />
-                      <text x="735" y="800" fill="#F0E9D9" fontSize="10" fontWeight="bold" fontFamily="serif" textAnchor="middle" letterSpacing="0.08em">
-                        QUẦN ĐẢO TRƯỜNG SA
-                      </text>
-                      <text x="735" y="812" fill="#5b829b" fontSize="7.5" textAnchor="middle">
-                        (Spratly Islands)
-                      </text>
-                      {SPRATLY_ISLANDS.map((isle, i) => (
-                        <g key={i}>
-                          <circle cx={isle.pos[0]} cy={isle.pos[1]} r={isle.r} fill="#6D9A83" stroke="#F0E9D9" strokeWidth="0.6" />
-                          <circle cx={isle.pos[0]} cy={isle.pos[1]} r={isle.r + 3} fill="none" stroke="#6D9A83" strokeWidth="0.4" opacity="0.5" strokeDasharray="1,1" />
-                        </g>
-                      ))}
-                    </g>
+              {/* 7. Pixel Jungle Canopy in Highlands */}
+              <g id="pixelTrees" fill="#15803d">
+                {PIXEL_TREES.map((t, i) => (
+                  <g key={i}>
+                    <rect x={t.x - 1} y={t.y + 2} width="2" height="4" fill="#78350f" />
+                    <rect x={t.x - 4} y={t.y - 2} width="8" height="4" fill="#166534" />
+                    <rect x={t.x - 2} y={t.y - 5} width="4" height="3" fill="#22c55e" />
                   </g>
-                )}
+                ))}
+              </g>
 
-                {/* 10. Major Maritime Labels */}
-                <g id="maritimeLabels" opacity="0.85">
-                  <text x="680" y="340" fill="#4a7694" fontSize="16" fontFamily="serif" letterSpacing="0.25em" fontWeight="bold" textAnchor="middle">
-                    BIỂN ĐÔNG
-                  </text>
-                  <text x="680" y="358" fill="#36586f" fontSize="9.5" letterSpacing="0.1em" textAnchor="middle">
-                    (EAST SEA / SOUTH CHINA SEA)
-                  </text>
-
-                  <text x="470" y="240" fill="#3e647e" fontSize="11" fontFamily="serif" letterSpacing="0.12em" textAnchor="middle">
-                    VỊNH BẮC BỘ
-                  </text>
-                  <text x="470" y="253" fill="#2d495c" fontSize="8" textAnchor="middle">
-                    (Gulf of Tonkin)
-                  </text>
-
-                  <text x="140" y="930" fill="#3e647e" fontSize="11" fontFamily="serif" letterSpacing="0.12em" textAnchor="middle">
-                    VỊNH THÁI LAN
-                  </text>
-                  <text x="140" y="943" fill="#2d495c" fontSize="8" textAnchor="middle">
-                    (Gulf of Thailand)
-                  </text>
-                </g>
-
-                {/* 11. Regional Context Labels */}
-                <g id="regionalLabels" opacity="0.65" pointerEvents="none">
-                  {REGION_LABELS.map((rl) => {
-                    const isHovered = hoveredRegion === rl.id || selectedRegion === rl.id;
-                    return (
-                      <g key={rl.id} className="transition-opacity duration-200">
-                        <text
-                          x={rl.x}
-                          y={rl.y}
-                          fill={isHovered ? "#C28B49" : "#688d9e"}
-                          fontSize={isHovered ? "11" : "9.5"}
-                          fontWeight="bold"
-                          letterSpacing="0.1em"
-                          textAnchor="middle"
-                          fontFamily="serif"
-                        >
-                          {rl.vi.toUpperCase()}
-                        </text>
-                        <text
-                          x={rl.x}
-                          y={rl.y + 11}
-                          fill={isHovered ? "#F0E9D9" : "#496877"}
-                          fontSize="7"
-                          textAnchor="middle"
-                        >
-                          {rl.sub}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </g>
-
-                {/* 12. Active Expedition Vector line from Hanoi HQ */}
-                {activeExpeditionTarget && (
-                  <g id="activeExpeditionVector">
-                    <line
-                      x1={HANOI_HQ.x}
-                      y1={HANOI_HQ.y}
-                      x2={activeExpeditionTarget.x}
-                      y2={activeExpeditionTarget.y}
-                      stroke="#C28B49"
-                      strokeWidth="2"
-                      strokeDasharray="6,4"
-                      className="expedition-vector"
-                    />
-                    {/* Glowing Traveling Dot */}
-                    <circle
-                      cx={(HANOI_HQ.x + activeExpeditionTarget.x) / 2}
-                      cy={(HANOI_HQ.y + activeExpeditionTarget.y) / 2}
-                      r="4"
-                      fill="#F0E9D9"
-                      stroke="#C28B49"
+              {/* 8. Pixel Islands (Phú Quốc, Côn Đảo, Cát Bà) */}
+              <g id="pixelIslands">
+                {PIXEL_ISLANDS.map((isle, i) => (
+                  <g key={i}>
+                    {/* Stepped pixel island body */}
+                    <rect
+                      x={isle.x}
+                      y={isle.y}
+                      width={isle.w}
+                      height={isle.h}
+                      fill="#1f4e38"
+                      stroke="#4da87a"
                       strokeWidth="1.5"
                     />
+                    <text
+                      x={isle.labelPos[0]}
+                      y={isle.labelPos[1]}
+                      fill="#8a9ea8"
+                      fontSize="7"
+                      fontFamily="var(--font-pixel)"
+                      textAnchor="middle"
+                      letterSpacing="0.05em"
+                    >
+                      {isle.name}
+                    </text>
                   </g>
-                )}
+                ))}
+              </g>
 
-                {/* 13. Hanoi HQ Landmark Pin */}
-                <g id="hanoiHqPin" transform={`translate(${HANOI_HQ.x}, ${HANOI_HQ.y})`}>
-                  <circle cx="0" cy="0" r="14" fill="none" stroke="#C28B49" strokeWidth="0.8" opacity="0.4" className="beacon-pulse" />
-                  <circle cx="0" cy="0" r="4.5" fill="#C28B49" stroke="#F0E9D9" strokeWidth="1.2" />
-                  <polygon
-                    points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2"
-                    fill="#F0E9D9"
+              {/* 9. Pixel Archipelagos (Hoàng Sa & Trường Sa) */}
+              <g id="pixelArchipelagos">
+                {/* Paracels / Hoàng Sa */}
+                <g>
+                  <rect
+                    x={PIXEL_ARCHIPELAGOS.hoangSa.bounds.x}
+                    y={PIXEL_ARCHIPELAGOS.hoangSa.bounds.y}
+                    width={PIXEL_ARCHIPELAGOS.hoangSa.bounds.w}
+                    height={PIXEL_ARCHIPELAGOS.hoangSa.bounds.h}
+                    fill="#0e2333"
+                    stroke="#1d4866"
+                    strokeWidth="1"
+                    strokeDasharray="4,4"
+                    opacity="0.7"
                   />
-                  {/* Label badge */}
-                  <rect x="-32" y="-22" width="64" height="14" rx="3" fill="#0b1822" stroke="#C28B49" strokeWidth="0.8" opacity="0.9" />
-                  <text x="0" y="-12" fill="#C28B49" fontSize="8" fontWeight="bold" textAnchor="middle">
-                    Hà Nội HQ
+                  <text
+                    x={PIXEL_ARCHIPELAGOS.hoangSa.bounds.x + 50}
+                    y={PIXEL_ARCHIPELAGOS.hoangSa.bounds.y + 14}
+                    fill="#f5d26d"
+                    fontSize="7"
+                    fontFamily="var(--font-pixel)"
+                    textAnchor="middle"
+                    letterSpacing="0.08em"
+                  >
+                    HOÀNG SA
                   </text>
+                  <text
+                    x={PIXEL_ARCHIPELAGOS.hoangSa.bounds.x + 50}
+                    y={PIXEL_ARCHIPELAGOS.hoangSa.bounds.y + 24}
+                    fill="#62899e"
+                    fontSize="6"
+                    fontFamily="var(--font-pixel)"
+                    textAnchor="middle"
+                  >
+                    PARACEL REEFS
+                  </text>
+                  {PIXEL_ARCHIPELAGOS.hoangSa.atolls.map((atoll, idx) => (
+                    <circle
+                      key={idx}
+                      cx={atoll.x}
+                      cy={atoll.y}
+                      r={atoll.r}
+                      fill="#2dd4bf"
+                      stroke="#0f766e"
+                      strokeWidth="1"
+                    />
+                  ))}
                 </g>
 
-                {/* 14. Archaeological Site Markers (Pins) */}
-                <g id="siteMarkers">
-                  {SITES.map((site) => {
-                    const coords = SITE_COORDS[site.id];
-                    if (!coords) return null;
-                    const unlocked = s.siteUnlocked.includes(site.id);
-                    const regionOk = s.regionUnlocked.includes(site.region);
-                    const isSelected = selected?.id === site.id;
-                    const isHovered = hoveredSite?.id === site.id;
-                    const isFiltered = selectedRegion === "all" || selectedRegion === site.region;
+                {/* Spratlys / Trường Sa */}
+                <g>
+                  <rect
+                    x={PIXEL_ARCHIPELAGOS.truongSa.bounds.x}
+                    y={PIXEL_ARCHIPELAGOS.truongSa.bounds.y}
+                    width={PIXEL_ARCHIPELAGOS.truongSa.bounds.w}
+                    height={PIXEL_ARCHIPELAGOS.truongSa.bounds.h}
+                    fill="#0e2333"
+                    stroke="#1d4866"
+                    strokeWidth="1"
+                    strokeDasharray="4,4"
+                    opacity="0.7"
+                  />
+                  <text
+                    x={PIXEL_ARCHIPELAGOS.truongSa.bounds.x + 55}
+                    y={PIXEL_ARCHIPELAGOS.truongSa.bounds.y + 14}
+                    fill="#f5d26d"
+                    fontSize="7"
+                    fontFamily="var(--font-pixel)"
+                    textAnchor="middle"
+                    letterSpacing="0.08em"
+                  >
+                    TRƯỜNG SA
+                  </text>
+                  <text
+                    x={PIXEL_ARCHIPELAGOS.truongSa.bounds.x + 55}
+                    y={PIXEL_ARCHIPELAGOS.truongSa.bounds.y + 24}
+                    fill="#62899e"
+                    fontSize="6"
+                    fontFamily="var(--font-pixel)"
+                    textAnchor="middle"
+                  >
+                    SPRATLY ATOLLS
+                  </text>
+                  {PIXEL_ARCHIPELAGOS.truongSa.atolls.map((atoll, idx) => (
+                    <circle
+                      key={idx}
+                      cx={atoll.x}
+                      cy={atoll.y}
+                      r={atoll.r}
+                      fill="#2dd4bf"
+                      stroke="#0f766e"
+                      strokeWidth="1"
+                    />
+                  ))}
+                </g>
+              </g>
 
-                    const status: "available" | "unlockable" | "region-locked" = !regionOk
-                      ? "region-locked"
-                      : unlocked
-                      ? "available"
-                      : "unlockable";
+              {/* 10. Water Title: BIỂN ĐÔNG (EAST SEA) */}
+              <text
+                x="480"
+                y="240"
+                fill="#2a5878"
+                fontSize="12"
+                fontFamily="var(--font-pixel)"
+                letterSpacing="0.2em"
+                textAnchor="middle"
+                opacity="0.7"
+              >
+                BIỂN ĐÔNG
+              </text>
+              <text
+                x="480"
+                y="254"
+                fill="#1b3f57"
+                fontSize="6.5"
+                fontFamily="var(--font-pixel)"
+                letterSpacing="0.1em"
+                textAnchor="middle"
+                opacity="0.8"
+              >
+                EAST SEA
+              </text>
 
-                    return (
-                      <g
-                        key={site.id}
-                        transform={`translate(${coords.x}, ${coords.y})`}
-                        onClick={() => {
-                          setSelected(site);
-                          playDiscoverySound();
-                        }}
-                        onMouseEnter={() => setHoveredSite(site)}
-                        onMouseLeave={() => setHoveredSite(null)}
-                        className="cursor-pointer transition-transform duration-200"
-                        opacity={isFiltered ? 1 : 0.4}
-                        filter="url(#pinShadow)"
-                      >
-                        {/* Radar wave when available */}
-                        {status === "available" && (
-                          <circle cx="0" cy="0" r="6" fill="none" stroke="#C28B49" strokeWidth="1" className="beacon-pulse" />
+              {/* 11. Active Expedition Marching Route from Hanoi HQ */}
+              {activeExpeditionTarget && (
+                <g id="activeExpeditionMarch">
+                  <line
+                    x1={PIXEL_HANOI_HQ.x}
+                    y1={PIXEL_HANOI_HQ.y}
+                    x2={activeExpeditionTarget.x}
+                    y2={activeExpeditionTarget.y}
+                    stroke="#f5d26d"
+                    strokeWidth="2"
+                    strokeDasharray="6,4"
+                    className="march-route"
+                  />
+                  {/* Bouncing Traveler Footstep / Dot */}
+                  <circle
+                    cx={(PIXEL_HANOI_HQ.x + activeExpeditionTarget.x) / 2}
+                    cy={(PIXEL_HANOI_HQ.y + activeExpeditionTarget.y) / 2}
+                    r="4"
+                    fill="#ffffff"
+                    stroke="#c89b3c"
+                    strokeWidth="1.5"
+                    className="target-reticle"
+                  />
+                </g>
+              )}
+
+              {/* 12. Hanoi Headquarters Landmark Pin */}
+              <g
+                id="hanoiHq"
+                transform={`translate(${PIXEL_HANOI_HQ.x}, ${PIXEL_HANOI_HQ.y})`}
+                className="select-none"
+              >
+                {/* Pavilion roof */}
+                <polygon points="-8,-2 0,-8 8,-2 6,4 -6,4" fill="#0f766e" stroke="#f5d26d" strokeWidth="1" />
+                <circle cx="0" cy="-2" r="3" fill="#f5d26d" />
+                {/* Flag pole & pennant */}
+                <rect x="0" y="-14" width="1.5" height="6" fill="#f5d26d" />
+                <polygon points="0,-14 7,-11 0,-8" fill="#e11d48" />
+                {/* HQ Badge */}
+                <rect x="-30" y="6" width="60" height="12" fill="#0b1620" stroke="#f5d26d" strokeWidth="1" />
+                <text
+                  x="0"
+                  y="14"
+                  fill="#f5d26d"
+                  fontSize="5.5"
+                  fontFamily="var(--font-pixel)"
+                  textAnchor="middle"
+                >
+                  HÀ NỘI HQ
+                </text>
+              </g>
+
+              {/* 13. Pixel Art Archaeological Sites (Landmarks) */}
+              <g id="pixelSiteLandmarks">
+                {SITES.map((site) => {
+                  const coords = PIXEL_SITE_COORDS[site.id];
+                  if (!coords) return null;
+                  const unlocked = s.siteUnlocked.includes(site.id);
+                  const regionOk = s.regionUnlocked.includes(site.region);
+                  const isSelected = selected?.id === site.id;
+                  const isHovered = hoveredSite?.id === site.id;
+                  const isFiltered = selectedRegion === "all" || selectedRegion === site.region;
+                  const isExcavating = s.expedition?.phase === "active" && s.expedition.plan.siteId === site.id;
+
+                  const status = !regionOk ? "locked" : unlocked ? "ready" : "permit";
+
+                  return (
+                    <g
+                      key={site.id}
+                      transform={`translate(${coords.x}, ${coords.y})`}
+                      onClick={() => {
+                        setSelected(site);
+                        playDiscoverySound();
+                      }}
+                      onMouseEnter={() => setHoveredSite(site)}
+                      onMouseLeave={() => setHoveredSite(null)}
+                      className="cursor-pointer"
+                      opacity={isFiltered ? 1 : 0.4}
+                    >
+                      {/* Selection / Active Radar Target Reticle */}
+                      {(isSelected || isHovered || isExcavating) && (
+                        <g className="target-reticle">
+                          <rect
+                            x="-14"
+                            y="-14"
+                            width="28"
+                            height="28"
+                            fill="none"
+                            stroke={isExcavating ? "#4da87a" : "#f5d26d"}
+                            strokeWidth="1.5"
+                            strokeDasharray="4,4"
+                          />
+                          {/* Corner brackets */}
+                          <path d="M-14,-10 L-14,-14 L-10,-14" fill="none" stroke="#f5d26d" strokeWidth="2" />
+                          <path d="M10,-14 L14,-14 L14,-10" fill="none" stroke="#f5d26d" strokeWidth="2" />
+                          <path d="M-14,10 L-14,14 L-10,14" fill="none" stroke="#f5d26d" strokeWidth="2" />
+                          <path d="M10,14 L14,14 L14,10" fill="none" stroke="#f5d26d" strokeWidth="2" />
+                        </g>
+                      )}
+
+                      {/* Pixel Art Landmark Graphic according to site icon type */}
+                      <g>
+                        {coords.icon === "castle" && (
+                          /* Cổ Loa Triple Rampart Citadel */
+                          <g>
+                            <rect x="-8" y="-3" width="16" height="9" fill="#52525b" stroke="#27272a" strokeWidth="1" />
+                            <rect x="-8" y="-6" width="4" height="3" fill="#71717a" />
+                            <rect x="-1" y="-6" width="3" height="3" fill="#71717a" />
+                            <rect x="5" y="-6" width="3" height="3" fill="#71717a" />
+                            <rect x="-2" y="1" width="4" height="5" fill="#18181b" />
+                            <rect x="0" y="-12" width="1.5" height="6" fill="#f5d26d" />
+                            <polygon points="0,-12 6,-9 0,-6" fill="#e11d48" />
+                          </g>
                         )}
 
-                        {/* Outer Pin Halo */}
-                        <circle
-                          cx="0"
-                          cy="0"
-                          r={isSelected ? 10 : isHovered ? 9 : 7}
-                          fill={
-                            status === "available"
-                              ? isSelected ? "#e6a858" : "#C28B49"
-                              : status === "unlockable"
-                              ? "#1b3540"
-                              : "#152028"
-                          }
-                          stroke={
-                            status === "available"
-                              ? "#F0E9D9"
-                              : status === "unlockable"
-                              ? "#6D9A83"
-                              : "#39505e"
-                          }
-                          strokeWidth={isSelected ? 2 : 1.5}
-                          strokeDasharray={status === "region-locked" ? "2,2" : undefined}
-                          className="transition-all duration-150"
-                        />
+                        {coords.icon === "cave" && (
+                          /* Hòa Bình Mountain Rock Shelter */
+                          <g>
+                            <polygon points="-9,6 -8,-4 -3,-8 3,-8 8,-4 9,6" fill="#475569" stroke="#1e293b" strokeWidth="1" />
+                            <ellipse cx="0" cy="2" rx="4" ry="4" fill="#09090b" />
+                            <rect x="-1.5" y="0" width="3" height="3" fill="#ea580c" />
+                            <rect x="-0.5" y="-2" width="1.5" height="2" fill="#fde047" />
+                          </g>
+                        )}
 
-                        {/* Center Dot or Significance Star */}
-                        <circle
-                          cx="0"
-                          cy="0"
-                          r={status === "available" ? 2.5 : 2}
-                          fill={status === "available" ? "#121d25" : status === "unlockable" ? "#6D9A83" : "#4a6578"}
-                        />
+                        {coords.icon === "trench" && (
+                          /* Liên Lậu Excavation Grid Trench */
+                          <g>
+                            <rect x="-8" y="-5" width="16" height="10" fill="#2d1d0e" stroke="#854d0e" strokeWidth="1" />
+                            <line x1="-8" y1="0" x2="8" y2="0" stroke="#ca8a04" strokeDasharray="2,2" />
+                            <circle cx="2" cy="0" r="3" fill="#c89b3c" stroke="#fef08a" strokeWidth="0.8" />
+                            <rect x="-6" y="-3" width="2" height="6" fill="#92400e" />
+                          </g>
+                        )}
 
-                        {/* Leader label badge */}
-                        <g transform={`translate(${coords.labelDx}, ${coords.labelDy})`} pointerEvents="none">
-                          <rect
-                            x={coords.labelDx < 0 ? -110 : 0}
-                            y="-9"
-                            width="110"
-                            height="18"
-                            rx="3"
-                            fill="#08141d"
-                            stroke={isSelected ? "#C28B49" : isHovered ? "#F0E9D9" : "#243d4f"}
-                            strokeWidth={isSelected ? "1.2" : "0.7"}
-                            opacity="0.95"
-                          />
-                          <text
-                            x={coords.labelDx < 0 ? -55 : 55}
-                            y="3"
-                            fill={isSelected ? "#F0E9D9" : isHovered ? "#F0E9D9" : "#B8C7C9"}
-                            fontSize="8"
-                            fontWeight={isSelected || isHovered ? "bold" : "500"}
-                            textAnchor="middle"
-                          >
-                            {site.name.length > 17 ? site.name.slice(0, 16) + "…" : site.name}
-                          </text>
-                        </g>
+                        {coords.icon === "kiln" && (
+                          /* Má Thẹn Pottery Kiln Mound */
+                          <g>
+                            <path d="M-7,5 L-7,0 Q-7,-7 0,-7 Q7,-7 7,0 L7,5 Z" fill="#c2410c" stroke="#431407" strokeWidth="1" />
+                            <rect x="-2.5" y="0" width="5" height="5" fill="#fbbf24" />
+                            {/* Smoke puffs */}
+                            <circle cx="2" cy="-10" r="2" fill="#cbd5e1" opacity="0.8" />
+                            <circle cx="5" cy="-14" r="2.5" fill="#cbd5e1" opacity="0.6" />
+                          </g>
+                        )}
+
+                        {coords.icon === "tower" && (
+                          /* Trà Kiệu Champa Brick Pagoda Tower */
+                          <g>
+                            <rect x="-7" y="1" width="14" height="4" fill="#991b1b" stroke="#450a0a" strokeWidth="1" />
+                            <rect x="-5" y="-3" width="10" height="4" fill="#b91c1c" />
+                            <rect x="-3" y="-7" width="6" height="4" fill="#dc2626" />
+                            <rect x="-1" y="-11" width="2" height="4" fill="#f5d26d" />
+                            <rect x="-1.5" y="1" width="3" height="4" fill="#18181b" />
+                          </g>
+                        )}
+
+                        {coords.icon === "dolmen" && (
+                          /* Đắk Sơn Megalithic Standing Stone */
+                          <g>
+                            <rect x="-4" y="-8" width="8" height="13" fill="#57534e" stroke="#1c1917" strokeWidth="1" />
+                            <rect x="-1.5" y="-4" width="3" height="4" fill="#a8a29e" />
+                            <rect x="-8" y="-3" width="3" height="8" fill="#44403c" />
+                            <rect x="5" y="-4" width="3" height="9" fill="#44403c" />
+                          </g>
+                        )}
+
+                        {coords.icon === "port" && (
+                          /* Óc Eo Port & Ancient Trading Vessel */
+                          <g>
+                            <rect x="-9" y="1" width="8" height="3" fill="#78350f" stroke="#451a03" strokeWidth="0.8" />
+                            <polygon points="-3,1 9,1 7,5 -4,5" fill="#451a03" />
+                            <polygon points="0,0 7,-8 0,-8" fill="#fed7aa" stroke="#ca8a04" strokeWidth="0.6" />
+                            <polygon points="-1,0 -6,-6 -1,-6" fill="#fde68a" stroke="#ca8a04" strokeWidth="0.6" />
+                          </g>
+                        )}
                       </g>
-                    );
-                  })}
-                </g>
 
-                {/* 15. Cartographic Accents: Antique Windrose Compass & Scale Bar */}
-                <g id="cartographicCompass" transform="translate(730, 140)" opacity="0.85">
-                  {/* Outer Rings */}
-                  <circle cx="0" cy="0" r="38" fill="#091823" opacity="0.6" stroke="#254359" strokeWidth="0.8" />
-                  <circle cx="0" cy="0" r="34" fill="none" stroke="#C28B49" strokeWidth="0.6" strokeDasharray="1.5,1.5" />
-                  <circle cx="0" cy="0" r="26" fill="none" stroke="#254359" strokeWidth="0.5" />
+                      {/* Active Digging Shovel Indicator */}
+                      {isExcavating && (
+                        <g transform="translate(6, -10)" className="animate-bounce">
+                          <rect x="0" y="0" width="2" height="6" fill="#ca8a04" />
+                          <polygon points="-2,6 4,6 1,10" fill="#94a3b8" />
+                        </g>
+                      )}
 
-                  {/* 8-Pointed Star Compass Rose */}
-                  {/* North Point (Bronze) */}
-                  <polygon points="0,0 -4,-8 0,-30 4,-8" fill="#C28B49" stroke="#F0E9D9" strokeWidth="0.4" />
-                  <polygon points="0,0 0,-30 -4,-8" fill="#a07238" />
-                  {/* South Point */}
-                  <polygon points="0,0 -3,6 0,24 3,6" fill="#32546a" stroke="#F0E9D9" strokeWidth="0.3" />
-                  {/* East Point */}
-                  <polygon points="0,0 6,-3 24,0 6,3" fill="#32546a" stroke="#F0E9D9" strokeWidth="0.3" />
-                  {/* West Point */}
-                  <polygon points="0,0 -6,-3 -24,0 -6,3" fill="#32546a" stroke="#F0E9D9" strokeWidth="0.3" />
+                      {/* Site Name Label Tag */}
+                      <g
+                        transform={`translate(${coords.labelOffset[0]}, ${coords.labelOffset[1]})`}
+                        pointerEvents="none"
+                      >
+                        <rect
+                          x={coords.labelAnchor === "left" ? -84 : 0}
+                          y="-7"
+                          width="84"
+                          height="14"
+                          fill="#09141f"
+                          stroke={isSelected ? "#f5d26d" : isHovered ? "#ffffff" : status === "ready" ? "#c89b3c" : "#22394a"}
+                          strokeWidth="1"
+                          opacity="0.95"
+                        />
+                        <text
+                          x={coords.labelAnchor === "left" ? -42 : 42}
+                          y="2.5"
+                          fill={status === "ready" ? "#f5d26d" : status === "permit" ? "#a8b8c0" : "#64748b"}
+                          fontSize="5.5"
+                          fontFamily="var(--font-pixel)"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          {coords.name}
+                        </text>
+                      </g>
+                    </g>
+                  );
+                })}
+              </g>
 
-                  {/* Intercardinal Points */}
-                  <polygon points="0,0 4,-4 16,-16 2,-2" fill="#203a4b" />
-                  <polygon points="0,0 -4,-4 -16,-16 -2,-2" fill="#203a4b" />
-                  <polygon points="0,0 4,4 16,16 2,2" fill="#203a4b" />
-                  <polygon points="0,0 -4,4 -16,16 -2,2" fill="#203a4b" />
+              {/* 14. Retro Arcade Compass Rose */}
+              <g id="pixelCompass" transform="translate(485, 95)" opacity="0.9">
+                <rect x="-24" y="-24" width="48" height="48" fill="#091824" stroke="#c89b3c" strokeWidth="1.5" />
+                <polygon points="0,-18 3,-4 0,0 -3,-4" fill="#f5d26d" />
+                <polygon points="0,18 3,4 0,0 -3,4" fill="#38546a" />
+                <polygon points="18,0 4,3 0,0 4,-3" fill="#38546a" />
+                <polygon points="-18,0 -4,3 0,0 -4,-3" fill="#38546a" />
+                <text x="0" y="-12" fill="#f5d26d" fontSize="6.5" fontFamily="var(--font-pixel)" textAnchor="middle">
+                  N
+                </text>
+              </g>
 
-                  {/* North Arrow Tag */}
-                  <text x="0" y="-34" fill="#C28B49" fontSize="10" fontWeight="bold" fontFamily="serif" textAnchor="middle">
-                    N
-                  </text>
-                  <text x="0" y="32" fill="#4f7287" fontSize="7" textAnchor="middle">S</text>
-                  <text x="32" y="2.5" fill="#4f7287" fontSize="7" textAnchor="middle">E</text>
-                  <text x="-32" y="2.5" fill="#4f7287" fontSize="7" textAnchor="middle">W</text>
-                </g>
-
-                {/* 16. Archival Chart Title & Scale Block (Cartouche) */}
-                <g id="cartoucheTitle" transform="translate(24, 930)" opacity="0.9">
-                  <rect x="0" y="0" width="180" height="52" rx="4" fill="#08141d" stroke="#254359" strokeWidth="0.8" opacity="0.9" />
-                  <text x="10" y="16" fill="#C28B49" fontSize="9" fontWeight="bold" fontFamily="serif" letterSpacing="0.08em">
-                    BẢN ĐỒ THÁM HIỂM KHẢO CỔ
-                  </text>
-                  <text x="10" y="28" fill="#7190a2" fontSize="7.2" fontFamily="sans-serif">
-                    Archaeological Survey Chart · 8°N–24°N
-                  </text>
-                  {/* Metric Bar Scale */}
-                  <g transform="translate(10, 36)">
-                    <rect x="0" y="0" width="140" height="3" fill="#1b303f" stroke="#486e87" strokeWidth="0.5" />
-                    <rect x="0" y="0" width="35" height="3" fill="#C28B49" />
-                    <rect x="70" y="0" width="35" height="3" fill="#C28B49" />
-                    <text x="0" y="10" fill="#52788f" fontSize="6.5">0</text>
-                    <text x="70" y="10" fill="#52788f" fontSize="6.5">250 km</text>
-                    <text x="140" y="10" fill="#52788f" fontSize="6.5">500 km</text>
-                  </g>
-                </g>
+              {/* 15. Retro Map Cartouche */}
+              <g id="pixelCartouche" transform="translate(16, 642)">
+                <rect x="0" y="0" width="145" height="42" fill="#091824" stroke="#c89b3c" strokeWidth="1.5" />
+                <text x="8" y="14" fill="#f5d26d" fontSize="6" fontFamily="var(--font-pixel)">
+                  RELIC CAPITAL
+                </text>
+                <text x="8" y="24" fill="#8a9ea8" fontSize="5" fontFamily="var(--font-pixel)">
+                  SURVEY THEATER
+                </text>
+                <text x="8" y="34" fill="#4da87a" fontSize="5" fontFamily="var(--font-pixel)">
+                  SECTOR: 8°N–24°N
+                </text>
               </g>
             </svg>
 
-            {/* Floating Marker Quick-Hover Card */}
+            {/* Hovered Site Quick Dossier Card */}
             {hoveredSite && (
               <div
-                className="absolute z-30 pointer-events-none panel p-2.5 bg-[#091520]/95 border-[#C28B49]/60 shadow-xl max-w-xs transition-opacity duration-150 rise-in"
+                className="absolute z-30 pointer-events-none p-3 bg-[#091520]/95 border-2 border-[#c89b3c] shadow-2xl max-w-xs transition-opacity duration-150 rise-in select-none"
                 style={{
-                  left: `${(SITE_COORDS[hoveredSite.id]?.x / MAP_DIMENSIONS.width) * 100}%`,
-                  top: `${(SITE_COORDS[hoveredSite.id]?.y / MAP_DIMENSIONS.height) * 100}%`,
+                  left: `${((PIXEL_SITE_COORDS[hoveredSite.id]?.x ?? 280) / PIXEL_MAP_DIMS.width) * 100}%`,
+                  top: `${((PIXEL_SITE_COORDS[hoveredSite.id]?.y ?? 350) / PIXEL_MAP_DIMS.height) * 100}%`,
                   transform: "translate(-50%, -125%)",
                 }}
               >
-                <div className="flex items-center justify-between gap-2 border-b hairline pb-1 mb-1.5">
-                  <span className="font-display text-xs text-[#F0E9D9] font-semibold">{hoveredSite.name}</span>
-                  <span className="tag text-[0.6rem] !py-0 !px-1 text-[#C28B49] border-[#C28B49]/40">
+                <div className="flex items-center justify-between gap-2 border-b border-[#22394a] pb-1.5 mb-1.5">
+                  <span
+                    className="text-xs text-[#F0E9D9] font-bold truncate"
+                    style={{ fontFamily: "var(--font-pixel)", fontSize: "0.55rem" }}
+                  >
+                    {hoveredSite.name}
+                  </span>
+                  <span
+                    className="tag text-[#f5d26d] border-[#f5d26d]/60 !py-0 !px-1"
+                    style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}
+                  >
                     ★ {hoveredSite.significance}/10
                   </span>
                 </div>
-                <p className="text-[0.68rem] text-[#A2B0B2] line-clamp-2 mb-1.5 leading-snug">{hoveredSite.desc}</p>
-                <div className="flex items-center justify-between text-[0.65rem] text-[#7d99a8]">
+                <p className="text-[0.72rem] text-[#8a9ea8] line-clamp-2 mb-2 leading-relaxed font-sans">
+                  {hoveredSite.desc}
+                </p>
+                <div
+                  className="flex items-center justify-between text-[0.62rem] text-[#c89b3c]"
+                  style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}
+                >
                   <span>{REGIONS.find((r) => r.id === hoveredSite.region)?.name}</span>
-                  <span className="font-medium text-[#C28B49]">~{fmt(hoveredSite.baseCost)} đ</span>
+                  <span>~{fmt(hoveredSite.baseCost)} đ</span>
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Region Commission / Unlock Action Bar */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 pt-2 border-t hairline">
-          <div className="text-xs text-[#A2B0B2]">
-            <span className="text-[#F0E9D9] font-medium">Regional Access:</span> Expand expedition operations to new geographic zones with institutes grants.
+        {/* Region Unlock Permits Bar */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t hairline">
+          <div className="text-xs text-[#8a9ea8]">
+            <span className="text-[#F0E9D9] font-bold" style={{ fontFamily: "var(--font-pixel)", fontSize: "0.5rem" }}>
+              REGIONAL SURVEY PERMITS:
+            </span>{" "}
+            Unlock distant archaeological zones as institute reputation grows.
           </div>
           <div className="flex flex-wrap gap-2">
             {REGIONS.filter((r) => !s.regionUnlocked.includes(r.id)).map((r) => {
@@ -785,6 +742,7 @@ export default function MapScreen() {
                       g.unlockRegion(r.id);
                       playCoinSound();
                     }}
+                    style={{ fontFamily: "var(--font-pixel)", fontSize: "0.48rem" }}
                   >
                     Unlock {r.name} — {fmt(r.unlockCost)} đ · rep {r.requiresReputation}
                   </button>
@@ -792,8 +750,8 @@ export default function MapScreen() {
               );
             })}
             {REGIONS.every((r) => s.regionUnlocked.includes(r.id)) && (
-              <span className="tag text-xs text-[#6D9A83] border-[#6D9A83]/40">
-                ✓ All regional survey permits secured
+              <span className="tag text-xs text-[#6D9A83] border-[#6D9A83]/40" style={{ fontFamily: "var(--font-pixel)", fontSize: "0.48rem" }}>
+                ✓ ALL REGIONAL PERMITS SECURED
               </span>
             )}
           </div>
@@ -803,15 +761,20 @@ export default function MapScreen() {
       {/* Selected Site Detail Modal */}
       {selected && <SiteDetail site={selected} onClose={() => setSelected(null)} />}
 
-      {/* Site Cards Grid */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs text-[#A2B0B2] px-1">
-          <span className="uppercase tracking-wider font-semibold text-[0.72rem] text-[#F0E9D9]">
+      {/* Excavation Sites Cards Grid */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between text-xs text-[#8a9ea8] px-1">
+          <span
+            className="uppercase tracking-wider font-bold text-[#F0E9D9]"
+            style={{ fontFamily: "var(--font-pixel)", fontSize: "0.52rem" }}
+          >
             {selectedRegion === "all"
-              ? "All Excavation Sites & Grids"
-              : `Sites in ${REGIONS.find((r) => r.id === selectedRegion)?.name}`}
+              ? "ALL EXCAVATION SITES"
+              : `SITES IN ${REGIONS.find((r) => r.id === selectedRegion)?.name.toUpperCase()}`}
           </span>
-          <span>Showing {filteredSites.length} of {SITES.length} sites</span>
+          <span style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}>
+            {filteredSites.length} / {SITES.length} SITES AVAILABLE
+          </span>
         </div>
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredSites.map((site) => (
@@ -831,41 +794,52 @@ function SiteCard({ site, onSelect }: { site: Site; onSelect: () => void }) {
 
   return (
     <div
-      className={`panel p-0 overflow-hidden transition-all duration-200 hover:border-[#C28B49]/40 ${
+      className={`panel p-0 overflow-hidden transition-all duration-200 hover:border-[#C28B49] ${
         !regionOk ? "opacity-55" : ""
       }`}
     >
       <div
         className="h-28 bg-cover bg-center border-b hairline relative cursor-pointer group"
-        style={{ backgroundImage: `url(${site.image ?? "/assets/sites/DEFAULT.jpg"})` }}
+        style={{ backgroundImage: `url(${site.image ?? "/assets/sites/coloas.jpg"})`, imageRendering: "pixelated" }}
         onClick={onSelect}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-[#09131B] via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
         {!regionOk && (
-          <div className="absolute inset-0 bg-[#09131B]/70 flex items-center justify-center text-xs text-[#A2B0B2] font-medium backdrop-blur-[1px]">
-            🔒 Region Locked — Secure permit above
+          <div
+            className="absolute inset-0 bg-[#09131B]/75 flex items-center justify-center text-[#e04040] font-bold p-2 text-center"
+            style={{ fontFamily: "var(--font-pixel)", fontSize: "0.5rem" }}
+          >
+            🔒 REGION LOCKED — SECURE PERMIT ABOVE
           </div>
         )}
-        <div className="absolute top-2 left-2 tag bg-[#0b1822]/90 border hairline backdrop-blur-sm text-[0.65rem]">
-          {site.status === "fictional" ? "Fictional scenario" : "Real site (surveyed)"}
+        <div
+          className="absolute top-2 left-2 tag bg-[#0b1822]/90 border hairline text-[0.6rem]"
+          style={{ fontFamily: "var(--font-pixel)", fontSize: "0.42rem" }}
+        >
+          {site.status === "fictional" ? "FICTIONAL MODEL" : "SURVEYED SITE"}
         </div>
-        <div className="absolute bottom-2 right-2 tag bg-[#0b1822]/90 border hairline text-[#C28B49] text-[0.65rem]">
-          ★ Sig {site.significance}/10
+        <div
+          className="absolute bottom-2 right-2 tag bg-[#0b1822]/90 border hairline text-[#f5d26d] text-[0.6rem]"
+          style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}
+        >
+          ★ SIG {site.significance}/10
         </div>
       </div>
 
       <div className="p-4">
-        <div className="flex justify-between items-baseline">
+        <div className="flex justify-between items-baseline gap-2">
           <h3
-            className="font-display text-lg hover:text-[#C28B49] cursor-pointer transition-colors"
+            className="font-display text-base hover:text-[#C28B49] cursor-pointer transition-colors truncate"
             onClick={onSelect}
           >
             {site.name}
           </h3>
-          <span className="text-xs text-[#A2B0B2]">{REGIONS.find((r) => r.id === site.region)?.name}</span>
+          <span className="text-[0.7rem] text-[#8a9ea8] shrink-0 font-sans">
+            {REGIONS.find((r) => r.id === site.region)?.name}
+          </span>
         </div>
-        <p className="text-xs text-[#A2B0B2] mt-1 line-clamp-2">{site.desc}</p>
-        <div className="flex gap-3 mt-2 num text-[0.7rem] text-[#A2B0B2]">
+        <p className="text-xs text-[#8a9ea8] mt-1 line-clamp-2 font-sans">{site.desc}</p>
+        <div className="flex gap-3 mt-2 num text-[0.7rem] text-[#8a9ea8]">
           <Tooltip text="Historical significance (1–10): drives artifact value and institute grant payout.">
             <span>Sig {site.significance}</span>
           </Tooltip>
@@ -881,7 +855,7 @@ function SiteCard({ site, onSelect }: { site: Site; onSelect: () => void }) {
         </div>
         <div className="flex gap-1 flex-wrap mt-2">
           {site.artifactCategories.map((c) => (
-            <span key={c} className="tag text-[0.65rem]">
+            <span key={c} className="tag text-[0.62rem]" style={{ fontFamily: "var(--font-pixel)", fontSize: "0.42rem" }}>
               {CATEGORY_LABELS[c]}
             </span>
           ))}
@@ -894,8 +868,9 @@ function SiteCard({ site, onSelect }: { site: Site; onSelect: () => void }) {
                 g.setPlan(defaultPlan(site.id));
                 g.setScreen("expedition");
               }}
+              style={{ fontFamily: "var(--font-pixel)", fontSize: "0.5rem" }}
             >
-              Plan expedition
+              PLAN EXPEDITION ►
             </button>
           ) : regionOk ? (
             <Tooltip
@@ -914,13 +889,18 @@ function SiteCard({ site, onSelect }: { site: Site; onSelect: () => void }) {
                   playCoinSound();
                   g.setScreen("expedition");
                 }}
+                style={{ fontFamily: "var(--font-pixel)", fontSize: "0.5rem" }}
               >
-                Unlock — {fmt(site.unlockCost)} đ
+                UNLOCK SITE — {fmt(site.unlockCost)} đ
               </button>
             </Tooltip>
           ) : (
-            <button className="btn btn-ghost w-full justify-center" disabled>
-              Region locked
+            <button
+              className="btn btn-ghost w-full justify-center"
+              disabled
+              style={{ fontFamily: "var(--font-pixel)", fontSize: "0.5rem" }}
+            >
+              REGION LOCKED
             </button>
           )}
         </div>
@@ -937,66 +917,85 @@ function SiteDetail({ site, onClose }: { site: Site; onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6 select-none"
       onClick={onClose}
     >
       <div
-        className="panel-elevated w-full max-w-2xl max-h-[90vh] overflow-y-auto rise-in border-[#C28B49]/40 shadow-2xl"
+        className="panel-elevated w-full max-w-2xl max-h-[90vh] overflow-y-auto rise-in border-2 border-[#C28B49] shadow-2xl bg-[#0a141d]"
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="h-40 bg-cover bg-center border-b hairline relative"
-          style={{ backgroundImage: `url(${site.image ?? "/assets/sites/DEFAULT.jpg"})` }}
+          className="h-40 bg-cover bg-center border-b-2 border-[#C28B49] relative"
+          style={{ backgroundImage: `url(${site.image ?? "/assets/sites/coloas.jpg"})`, imageRendering: "pixelated" }}
         >
           <button
-            className="btn btn-ghost absolute top-2 right-2 !py-0.5 !px-2 bg-[#09131B]/80 backdrop-blur-sm"
+            className="btn btn-ghost absolute top-2 right-2 !py-0.5 !px-2 bg-[#09131B]/90 border hairline"
             onClick={onClose}
           >
-            Close ✕
+            ✕
           </button>
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#09131B] via-[#09131B]/80 to-transparent p-5">
-            <h3 className="font-display text-2xl text-[#F0E9D9]">{site.name}</h3>
-            <span className="text-xs text-[#C28B49] font-medium">
-              {REGIONS.find((r) => r.id === site.region)?.name} · Historical Archaeology
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#0a141d] via-[#0a141d]/90 to-transparent p-5">
+            <h3
+              className="font-display text-2xl text-[#F0E9D9]"
+              style={{ textShadow: "0 0 10px rgba(200, 155, 60, 0.5)" }}
+            >
+              {site.name}
+            </h3>
+            <span
+              className="text-xs text-[#C28B49] font-bold"
+              style={{ fontFamily: "var(--font-pixel)", fontSize: "0.5rem" }}
+            >
+              {REGIONS.find((r) => r.id === site.region)?.name} · EXCAVATION GRID
             </span>
           </div>
         </div>
         <div className="p-5">
           <div className="flex flex-wrap gap-2 mb-3">
-            <span className="tag">
-              {site.status === "fictional" ? "Fictional scenario" : "Real site — fictionalized expedition model"}
+            <span className="tag" style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}>
+              {site.status === "fictional" ? "FICTIONAL SCENARIO" : "DOCUMENTED REAL SITE"}
             </span>
-            <span className="tag">{REGIONS.find((r) => r.id === site.region)?.name}</span>
+            <span className="tag" style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}>
+              {REGIONS.find((r) => r.id === site.region)?.name}
+            </span>
             {site.eras.map((e) => (
-              <span key={e} className="tag text-[#C28B49] border-[#C28B49]/40">
+              <span
+                key={e}
+                className="tag text-[#f5d26d] border-[#f5d26d]/60"
+                style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}
+              >
                 {ERA_LABELS[e]}
               </span>
             ))}
           </div>
-          <p className="text-sm text-[#F0E9D9]/85 mb-4 leading-relaxed">{site.desc}</p>
+          <p className="text-sm text-[#F0E9D9]/90 mb-4 leading-relaxed font-sans">{site.desc}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 num text-sm">
-            <KV k="Historical significance" v={`${site.significance}/10`} tip="How important finds here might be." />
+            <KV k="Significance" v={`${site.significance}/10`} tip="How important discoveries here might be." />
             <KV
               k="Data quality"
               v={`${site.dataQuality}/10`}
-              tip="How well the area is already documented — affects context quality."
+              tip="How well the area is already surveyed — affects context quality."
             />
             <KV k="Difficulty" v={`${site.difficulty}/5`} tip="Drives expedition cost per day." />
-            <KV k="Environmental risk" v={`${site.risk}/5`} tip="Chance of mishaps that damage finds." />
-            <KV k="Base cost" v={`≈ ${fmt(site.baseCost)} đ`} tip="Cost anchor; your plan multiplies this." />
+            <KV k="Risk level" v={`${site.risk}/5`} tip="Chance of mishaps that damage finds." />
+            <KV k="Base budget" v={`≈ ${fmt(site.baseCost)} đ`} tip="Base budget multiplier anchor." />
             <KV
-              k="Rep needed"
+              k="Rep required"
               v={site.requiresReputation.toString()}
-              tip="Institute reputation required to operate here."
+              tip="Institute reputation needed to operate here."
             />
           </div>
-          <div className="mt-4 text-xs text-[#A2B0B2]">
-            <div className="uppercase tracking-wider mb-1 font-semibold text-[#F0E9D9]">Potential grants</div>
+          <div className="mt-4 text-xs text-[#8a9ea8]">
+            <div
+              className="uppercase tracking-wider mb-1 font-bold text-[#F0E9D9]"
+              style={{ fontFamily: "var(--font-pixel)", fontSize: "0.5rem" }}
+            >
+              POTENTIAL GRANTS &amp; AWARDS
+            </div>
             {site.grants.join(" · ")}
           </div>
           <div className="mt-5 flex justify-end gap-3 pt-3 border-t hairline">
             <button className="btn btn-ghost" onClick={onClose}>
-              Cancel
+              Back
             </button>
             {unlocked ? (
               <button
@@ -1006,8 +1005,9 @@ function SiteDetail({ site, onClose }: { site: Site; onClose: () => void }) {
                   g.setScreen("expedition");
                   onClose();
                 }}
+                style={{ fontFamily: "var(--font-pixel)", fontSize: "0.55rem" }}
               >
-                Plan expedition here →
+                PLAN EXPEDITION HERE ►
               </button>
             ) : regionOk ? (
               <button
@@ -1020,12 +1020,13 @@ function SiteDetail({ site, onClose }: { site: Site; onClose: () => void }) {
                   g.setScreen("expedition");
                   onClose();
                 }}
+                style={{ fontFamily: "var(--font-pixel)", fontSize: "0.55rem" }}
               >
-                Unlock site — {fmt(site.unlockCost)} đ
+                UNLOCK SITE — {fmt(site.unlockCost)} đ
               </button>
             ) : (
               <button className="btn btn-ghost" disabled>
-                Region locked
+                Region Locked
               </button>
             )}
           </div>
@@ -1038,9 +1039,14 @@ function SiteDetail({ site, onClose }: { site: Site; onClose: () => void }) {
 function KV({ k, v, tip }: { k: string; v: string; tip: string }) {
   return (
     <Tooltip text={tip}>
-      <div className="border hairline rounded p-2.5 bg-[#091520]/60 cursor-help hover:border-[#C28B49]/40 transition-colors">
-        <div className="text-[0.62rem] uppercase tracking-wider text-[#A2B0B2] mb-0.5">{k}</div>
-        <div className="num font-semibold text-[#F0E9D9]">{v}</div>
+      <div className="border hairline rounded-none p-2.5 bg-[#091520]/80 cursor-help hover:border-[#C28B49] transition-colors">
+        <div
+          className="uppercase tracking-wider text-[#8a9ea8] mb-0.5"
+          style={{ fontFamily: "var(--font-pixel)", fontSize: "0.45rem" }}
+        >
+          {k}
+        </div>
+        <div className="num font-bold text-[#F0E9D9]">{v}</div>
       </div>
     </Tooltip>
   );

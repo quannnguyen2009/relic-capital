@@ -4,6 +4,7 @@ import { useGame } from "@/game/store";
 import type { Difficulty } from "@/game/engine/types";
 import { DIFFICULTIES } from "@/game/data/systems";
 import { IconCheck } from "./PixelIcons";
+import RelicCapitalLogo from "./RelicCapitalLogo";
 
 export default function StartScreen({ hasSave, onContinue, onBack }: { hasSave: boolean; onContinue: () => void; onBack?: () => void }) {
   const game = useGame();
@@ -39,15 +40,20 @@ export default function StartScreen({ hasSave, onContinue, onBack }: { hasSave: 
           <div style={{ width: 4, height: 4, background: "var(--bronze)" }} />
         </div>
 
-        <p className="tag border-[#c89b3c] text-[#c89b3c] mb-4" style={{ fontFamily: "var(--font-pixel)", fontSize: "0.4rem" }}>
-          VIETNAMESE ARCHAEOLOGY · RESEARCH · FINANCE
-        </p>
-        <h1
-          className="mb-3 text-glow-bronze"
-          style={{ fontFamily: "var(--font-pixel)", fontSize: "1.1rem", lineHeight: 1.5, color: "#e8d8b0" }}
-        >
-          RELIC CAPITAL
-        </h1>
+        <div className="flex items-center gap-4 mb-4">
+          <RelicCapitalLogo size={56} variant="emblem" animateGlow />
+          <div>
+            <p className="tag border-[#c89b3c] text-[#c89b3c] mb-1.5" style={{ fontFamily: "var(--font-pixel)", fontSize: "0.4rem" }}>
+              VIETNAMESE ARCHAEOLOGY · RESEARCH · FINANCE
+            </p>
+            <h1
+              className="text-glow-bronze"
+              style={{ fontFamily: "var(--font-pixel)", fontSize: "1.1rem", lineHeight: 1.4, color: "#e8d8b0" }}
+            >
+              RELIC CAPITAL
+            </h1>
+          </div>
+        </div>
         <p className="text-[#8a9ea8] text-sm mb-6" style={{ fontFamily: "var(--font-vt323)", fontSize: "1rem" }}>
           DIRECT AN INDEPENDENT RESEARCH INSTITUTE. CHOOSE SITES, PLAN EXPEDITIONS, VERIFY
           AI-GENERATED HYPOTHESES, AND KEEP THE BOOKS ALIVE.{" "}

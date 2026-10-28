@@ -2,8 +2,11 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { newGame } from "../game/engine/newGame";
 import {
   spend, earn, startExpedition, validatePlan, estimateExpedition, expeditionQuality,
-  advanceExpeditionDay, resolveExpeditionDecision, clamp,
+  advanceExpeditionDay, resolveExpeditionDecision, clamp, fieldHunch, evaluateAssemblages,
+  makeArtifact,
 } from "../game/engine/core";
+import { makeRng } from "../game/engine/rng";
+import { SITES, ARTIFACT_TEMPLATES } from "../game/data/world";
 import { runAnalysis, verifyArtifact, publishArtifact } from "../game/engine/research";
 import { applyGrant, grantScore, resolveGrants } from "../game/engine/grants";
 import { initMarket, buy, sell, priceOf, portfolioValue, TRADE_FEE } from "../game/engine/market";
@@ -89,6 +92,40 @@ describe("expedition", () => {
     expect(big.cost).toBeGreaterThan(est.cost);
   });
 
+  it("depth bands trade cost and energy for richer targets", () => {
+    const s = freshGame();
+    const surface = estimateExpedition(s, plan({ depth: "surface" }));
+    const cultural = estimateExpedition(s, plan({ depth: "cultural" }));
+    const deep = estimateExpedition(s, plan({ depth: "deep" }));
+    expect(surface.cost).toBeLessThan(cultural.cost);
+    expect(deep.cost).toBeGreaterThan(cultural.cost);
+    expect(deep.energy).toBeGreaterThan(surface.energy);
+  });
+
+  it("deep digs produce richer finds than surface digs", () => {
+    const s = freshGame();
+    const tpl = ARTIFACT_TEMPLATES.find((t) => t.id === "pot-dong-son-jar")!;
+    const site = SITES.find((x) => x.id === "delta-lien-lau")!;
+    const deep = makeArtifact(s, tpl, site, 0.7, makeRng(777), 0, "deep");
+    const cultural = makeArtifact(s, tpl, site, 0.7, makeRng(777), 0, "cultural");
+    const surface = makeArtifact(s, tpl, site, 0.7, makeRng(777), 0, "surface");
+    expect(deep.significance).toBeGreaterThan(cultural.significance);
+    expect(cultural.significance).toBeGreaterThan(surface.significance);
+    expect(deep.evidencedValue).toBeGreaterThan(surface.evidencedValue);
+  });
+
+  it("field hunch builds during a dry spell and caps out", () => {
+    expect(fieldHunch(0)).toBe(0);
+    expect(fieldHunch(3)).toBeCloseTo(0.21);
+    expect(fieldHunch(20)).toBe(0.45);
+
+    const s = freshGame();
+    startExpedition(s, plan({ days: 4 }));
+    s.resources.supplies = 0; // guarantees no find: supply-gated
+    advanceExpeditionDay(s);
+    expect(s.expedition!.dryDays).toBe(1);
+  });
+
   it("start deducts cash, supplies, energy and records the expedition", () => {
     const s = freshGame();
     const c0 = s.resources.cash, sup0 = s.resources.supplies, en0 = s.resources.energy;
@@ -133,6 +170,49 @@ describe("expedition", () => {
       // decision day must have been scheduled at max(2, days/2)
       expect(s.expedition!.elapsedDays).toBeGreaterThanOrEqual(0);
     }
+  });
+});
+
+// ── Museum assemblages ───────────────────────────────────────────────────────
+describe("museum assemblages", () => {
+  it("completes a set when every template is cataloged, paying out once", () => {
+    const s = freshGame();
+    s.resources.research = 0;
+    const templates = ["pot-dong-son-jar", "pot-phung-nguyen-bowl", "bronze-socketed-axe"];
+    templates.forEach((templateId, i) => s.artifacts.push({
+      uid: `C${i}`, templateId, name: `Set piece ${i}`, category: "pottery",
+      material: "fired clay", period: "unconfirmed", eraHint: null, trueEra: "dong-son",
+      siteId: "delta-lien-lau", context: "ctx", description: "d", condition: "good",
+      significance: 5, evidencedValue: 1000, confidence: 0.5, confidenceLabel: "probable",
+      provenance: 0.5, status: "classified", hypotheses: [], evidences: [],
+      conservationReq: "", researchLog: [], acquiredDay: 1, accessibility: 0,
+    }));
+
+    const cash0 = s.resources.cash;
+    const completed = evaluateAssemblages(s);
+    expect(completed).toContain("delta-type-series");
+    expect(s.completedAssemblages).toContain("delta-type-series");
+    expect(s.resources.cash).toBe(cash0 + 30000);
+    expect(s.ledger.some((e) => e.reason.includes("Red River Type Series"))).toBe(true);
+
+    // never pays the same set twice
+    expect(evaluateAssemblages(s)).not.toContain("delta-type-series");
+    expect(s.resources.cash).toBe(cash0 + 30000);
+  });
+
+  it("does not count unanalyzed finds", () => {
+    const s = freshGame();
+    for (const templateId of ["pot-dong-son-jar", "pot-phung-nguyen-bowl", "bronze-socketed-axe"]) {
+      s.artifacts.push({
+        uid: `U${templateId}`, templateId, name: "raw", category: "pottery",
+        material: "clay", period: "unconfirmed", eraHint: null, trueEra: "dong-son",
+        siteId: "delta-lien-lau", context: "ctx", description: "d", condition: "fair",
+        significance: 4, evidencedValue: 500, confidence: 0.2, confidenceLabel: "hypothesis",
+        provenance: 0.3, status: "unanalyzed", hypotheses: [], evidences: [],
+        conservationReq: "", researchLog: [], acquiredDay: 1, accessibility: 0,
+      });
+    }
+    expect(evaluateAssemblages(s)).not.toContain("delta-type-series");
   });
 });
 

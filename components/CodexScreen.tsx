@@ -2,10 +2,13 @@
 import { useGame } from "@/game/store";
 import { Panel } from "./ui";
 import { ERAS } from "@/game/data/world";
+import PixelAvatar from "./PixelAvatar";
 
 const CODEX: { id: string; title: string; category: string; body: string; label: "mechanic" | "history" | "mixed" }[] = [
   { id: "exc", title: "Excavation & context", category: "Fieldwork", label: "mixed", body: "An artifact means little without its layer. Every find in this game carries an excavation context note — in real archaeology, context is most of the evidence. Destroying context by digging carelessly is how information, not just objects, is lost." },
   { id: "prov", title: "Provenance & attribution", category: "Fieldwork", label: "mechanic", body: "Provenance completeness measures how well an object's recovery history is documented (0–100%). High provenance raises grant scores and evidentiary weight; low provenance is a red flag the anomaly detector will call out." },
+  { id: "depth", title: "Excavation depth & field hunch", category: "Fieldwork", label: "mechanic", body: "Choose a target band before digging. Surface strata are cheap, fast and safe but yield mostly common material; deep strata are costlier and riskier but produce rarer, higher-significance finds. When a dig goes a day without a discovery, the team's field hunch rises, improving the next day's find odds until something turns up. The expedition panel shows today's actual find chance." },
+  { id: "assemblage", title: "Museum assemblages", category: "Archive", label: "mechanic", body: "The Archive tracks six thematic collection sets — from the Red River Type Series to the Óc Eo Cosmopolitan assemblage. Run any analysis on a find to catalog it into its set. Completing every slot pays a one-time cash, research and reputation reward, and each completed set is a permanent museum acquisition." },
   { id: "strat", title: "Stratigraphy & dating", category: "Fieldwork", label: "history", body: "Artifacts are dated by their layer (relative dating) and, when possible, absolute methods like radiocarbon. In-game, 'Period estimation' mimics typological comparison: it can be wrong — treat its output as a hypothesis until verified." },
   { id: "cons", title: "Conservation", category: "Fieldwork", label: "mixed", body: "Fragile objects demand climate control and cautious handling. Poor conditions degrade artifacts, lowering evidence quality. The Conservation Grant rewards safe recovery." },
   { id: "ocr", title: "OCR, imaging & computer vision", category: "Research", label: "history", body: "High-resolution imaging (RTI, structured-light scanning) lets researchers read worn inscriptions and record finds in 3D. This game simulates such tools as 'evidence quality' boosts — no external AI service is used; the analysis engine is rule-based and labeled." },
@@ -65,9 +68,15 @@ export default function CodexScreen() {
             </ul>
           </Panel>
 
-          <Panel title="Tutorial">
-            <p className="text-sm text-[#A2B0B2]">Replay the guided first expedition with Dr. Linh at any time.</p>
-            <button className="btn btn-primary mt-2" onClick={() => g.replayTutorial()}>
+          <Panel title="Tutorial & Guidance">
+            <div className="flex items-center gap-3 mb-3">
+              <PixelAvatar doctorId="dr_linh" size={40} frame="pixel-box" animated />
+              <div>
+                <div className="font-display text-sm text-[#F0E9D9]">Dr. Linh</div>
+                <p className="text-xs text-[#A2B0B2]">Replay the guided first expedition with Dr. Linh at any time.</p>
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={() => g.replayTutorial()}>
               Replay tutorial
             </button>
           </Panel>

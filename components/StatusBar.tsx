@@ -8,8 +8,7 @@ import {
   IconSoundOn, IconSoundOff, IconFlagVN, IconFlagGB,
   IconMuseum, IconSaveDot
 } from "./PixelIcons";
-
-
+import RelicCapitalLogo from "./RelicCapitalLogo";
 
 const money = (n: number) => `${fmt(n)} đ`;
 
@@ -38,14 +37,17 @@ export default function StatusBar() {
   return (
     <header className="border-b hairline bg-[#0b1822] sticky top-0 z-30 shadow-md">
       <div className="max-w-[1500px] mx-auto px-4 py-2 flex items-center gap-x-4 gap-y-1.5 flex-wrap">
-        {/* Institute Branding */}
-        <div className="flex items-baseline gap-2">
-          <span className="font-display text-lg tracking-wide text-[#F0E9D9]">
-            {t("instituteTitle", lang)}
-          </span>
-          <span className="text-[#A2B0B2] text-xs hidden lg:inline font-light border-l border-[#22384a] pl-2">
-            {t("instituteSubtitle", lang)}
-          </span>
+        {/* Institute Branding with Pixel Logo */}
+        <div className="flex items-center gap-2.5">
+          <RelicCapitalLogo size={22} variant="emblem" />
+          <div className="flex items-baseline gap-2">
+            <span className="font-display text-lg tracking-wide text-[#F0E9D9]">
+              {t("instituteTitle", lang)}
+            </span>
+            <span className="text-[#A2B0B2] text-xs hidden lg:inline font-light border-l border-[#22384a] pl-2">
+              {t("instituteSubtitle", lang)}
+            </span>
+          </div>
         </div>
 
         <span className="flex-1" />

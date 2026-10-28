@@ -17,6 +17,7 @@ import TutorialModal from "@/components/tutorial/TutorialModal";
 import EventModal from "@/components/tutorial/EventModal";
 import XpReportModal from "@/components/expedition/XpReportModal";
 import AchievementModal from "@/components/tutorial/AchievementModal";
+import AssemblageModal from "@/components/tutorial/AssemblageModal";
 import StartScreen from "@/components/StartScreen";
 import CoverScreen from "@/components/CoverScreen";
 import { Tooltip } from "@/components/ui";
@@ -48,7 +49,6 @@ const NAV: { id: Screen; labelKey: DictKey }[] = [
   { id: "archive", labelKey: "nav_archive" },
   { id: "lab", labelKey: "nav_lab" },
   { id: "finance", labelKey: "nav_finance" },
-  { id: "market", labelKey: "nav_market" },
   { id: "dev", labelKey: "nav_dev" },
   { id: "codex", labelKey: "nav_codex" },
 ];
@@ -200,6 +200,7 @@ export default function Page() {
       {game.modal?.kind === "event" && <EventModal eventId={game.modal.eventId} />}
       {game.modal?.kind === "xp-report" && <XpReportModal />}
       {game.modal?.kind === "achievement" && <AchievementModal ids={game.modal.ids} />}
+      {game.modal?.kind === "assemblage" && <AssemblageModal ids={game.modal.ids} />}
       {game.modal?.kind === "confirm-reset" && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => game.setModal(null)}>
           <div className="panel-elevated p-6 max-w-md rise-in" onClick={(e) => e.stopPropagation()}>

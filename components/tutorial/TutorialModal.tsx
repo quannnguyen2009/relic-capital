@@ -2,6 +2,7 @@
 import { useGame, STEP_NAV } from "@/game/store";
 import { TUTORIAL, TOTAL_TUTORIAL_STEPS } from "@/game/data/systems";
 import { SITES } from "@/game/data/world";
+import PixelAvatar from "../PixelAvatar";
 
 export default function TutorialModal() {
   const g = useGame();
@@ -18,9 +19,7 @@ export default function TutorialModal() {
         {/* Header with speaker & Skip tutorial button */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#172A33] border border-[#C28B49] flex items-center justify-center font-display text-lg text-[#C28B49] shadow-inner">
-              L
-            </div>
+            <PixelAvatar doctorId="dr_linh" size={48} frame="pixel-box" animated speaking />
             <div>
               <div className="font-display text-base sm:text-lg text-[#F0E9D9]">Dr. Linh</div>
               <div className="text-[0.68rem] text-[#A2B0B2] uppercase tracking-wider">

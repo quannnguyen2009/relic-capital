@@ -2,14 +2,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "@/game/store";
 import { Panel, Bar, Tooltip } from "../ui";
-import { fmt, estimateExpedition } from "@/game/engine/core";
+import { fmt, estimateExpedition, depthOf, fieldHunch, expeditionFindChance } from "@/game/engine/core";
 import { SITES } from "@/game/data/world";
-import { EQUIPMENT_DEFS } from "@/game/data/systems";
+import { EQUIPMENT_DEFS, DEPTHS } from "@/game/data/systems";
+import type { DepthBand } from "@/game/engine/types";
 import { playDigSound } from "@/game/sound";
 import type { ExpeditionPlan } from "@/game/engine/types";
 
 function defaultPlan(siteId: string): ExpeditionPlan {
-  return { siteId, workers: 4, days: 4, equipment: [], survey: true, careful: true, objective: "balanced" };
+  return { siteId, workers: 4, days: 4, equipment: [], survey: true, careful: true, objective: "balanced", depth: "cultural" };
 }
 
 export default function ExpeditionScreen() {
@@ -55,6 +56,53 @@ export default function ExpeditionScreen() {
               <p className="text-xs text-[#A2B0B2] mt-1">{site.desc}</p>
             </div>
 
+            {/* Quick Presets */}
+            <div className="bg-[#1a2327]/60 border border-[#23353a] p-3 rounded-lg space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs uppercase tracking-wider text-[#A2B0B2] font-semibold">Quick Plan Presets</span>
+                <span className="text-[10px] text-[#A2B0B2]">1-click setup</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  {
+                    name: "Cautious Survey",
+                    tag: "Low Cost",
+                    p: { workers: 3, days: 3, objective: "survey" as const, depth: "surface" as const, survey: true, careful: true },
+                  },
+                  {
+                    name: "Standard Dig",
+                    tag: "Balanced",
+                    p: { workers: 4, days: 4, objective: "balanced" as const, depth: "cultural" as const, survey: true, careful: true },
+                  },
+                  {
+                    name: "Deep Trench",
+                    tag: "High Yield",
+                    p: { workers: 6, days: 6, objective: "intensive" as const, depth: "deep" as const, survey: true, careful: true },
+                  },
+                ].map((item) => {
+                  const isCurrent =
+                    plan.workers === item.p.workers &&
+                    plan.days === item.p.days &&
+                    plan.objective === item.p.objective &&
+                    depthOf(plan) === item.p.depth;
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={() => g.setPlan({ ...plan, ...item.p })}
+                      className={`text-left p-2 rounded border transition-all ${
+                        isCurrent
+                          ? "border-[#C28B49] bg-[#C28B49]/15 text-[#f4ecd8]"
+                          : "border-[#2a3c42] bg-[#121c20] text-[#A2B0B2] hover:border-[#6D9A83]"
+                      }`}
+                    >
+                      <div className="text-[10px] uppercase font-bold text-[#C28B49]">{item.tag}</div>
+                      <div className="text-xs font-semibold leading-tight mt-0.5">{item.name}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <label className="text-xs uppercase tracking-wider text-[#A2B0B2] flex justify-between">
                 <span>Workers <Tooltip text="More workers: more discovery chances and context quality, more cost and energy.">ⓘ</Tooltip></span>
@@ -83,13 +131,56 @@ export default function ExpeditionScreen() {
               </div>
             </div>
 
+            <div>
+              <label className="text-xs uppercase tracking-wider text-[#A2B0B2] mb-1 block">Target strata</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["surface", "cultural", "deep"] as const).map((d) => {
+                  const active = depthOf(plan) === d;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => g.setPlan({ ...plan, depth: d })}
+                      className={`text-left p-2 rounded border transition-colors ${active ? "border-[#C28B49] text-[#C28B49] bg-[#C28B49]/10" : "hairline text-[#A2B0B2] hover:border-[#6D9A83]"}`}
+                    >
+                      <div className="text-xs font-semibold">{DEPTHS[d].short}</div>
+                      <div className="text-[0.6rem] leading-tight mt-0.5">{DEPTHS[d].desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex gap-2">
               <Toggle on={plan.survey} onClick={() => g.setPlan({ ...plan, survey: !plan.survey })} label="Survey first" tip="+context quality, +20% cost" />
               <Toggle on={plan.careful} onClick={() => g.setPlan({ ...plan, careful: !plan.careful })} label="Careful recovery" tip="+condition and evidence, +25% cost" />
             </div>
 
             <div>
-              <label className="text-xs uppercase tracking-wider text-[#A2B0B2] mb-1 block">Equipment to deploy <Tooltip text="Owned equipment improves the dig automatically.">ⓘ</Tooltip></label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs uppercase tracking-wider text-[#A2B0B2]">
+                  Equipment to deploy <Tooltip text="Owned equipment improves the dig automatically.">ⓘ</Tooltip>
+                </label>
+                {s.equipmentOwned.length > 0 && (
+                  <div className="flex gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => g.setPlan({ ...plan, equipment: [...s.equipmentOwned] })}
+                      className="text-[#6D9A83] hover:underline"
+                    >
+                      Deploy all ({s.equipmentOwned.length})
+                    </button>
+                    {plan.equipment.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => g.setPlan({ ...plan, equipment: [] })}
+                        className="text-[#A2B0B2] hover:underline"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2">
                 {EQUIPMENT_DEFS.filter((e) => s.equipmentOwned.includes(e.id)).map((e) => (
                   <button
@@ -115,6 +206,7 @@ export default function ExpeditionScreen() {
               <Row k="Field supplies" v={`${est.supplies} (have ${Math.floor(s.resources.supplies)})`} />
               <Row k="Team energy" v={`${est.energy} (have ${Math.floor(s.resources.energy)})`} />
               <Row k="Duration" v={`${est.days} in-game days`} />
+              <Row k="Target strata" v={DEPTHS[depthOf(plan)].name} />
             </dl>
             {est.warnings.length > 0 && (
               <ul className="text-xs text-[#D66D67] mt-3 space-y-1">
@@ -184,13 +276,25 @@ function LaunchFeedback({ msg }: { msg: { ok: boolean; text: string } | null }) 
   return <p className="text-xs mt-2 text-[#D66D67]">✕ {msg.text}</p>;
 }
 
+const DEPTH_RANGE: Record<DepthBand, [number, number]> = {
+  surface: [0.1, 0.6],
+  cultural: [0.5, 1.7],
+  deep: [1.6, 2.9],
+};
+
 function ActiveExpedition() {
   const g = useGame();
   const s = g.s!;
   const e = s.expedition!;
   const site = SITES.find((x) => x.id === e.plan.siteId)!;
   const progressRatio = Math.min(1, e.elapsedDays / Math.max(1, e.totalDays));
-  const currentDepth = (0.3 + progressRatio * 2.8).toFixed(2);
+  const depth = depthOf(e.plan);
+  const band = DEPTHS[depth];
+  const [depthFrom, depthTo] = DEPTH_RANGE[depth];
+  const currentDepth = (depthFrom + progressRatio * (depthTo - depthFrom)).toFixed(2);
+  const dryDays = e.dryDays ?? 0;
+  const hunch = fieldHunch(dryDays);
+  const findChance = expeditionFindChance(s, e);
 
   // 3x3 Sieve grid state
   const [brushedCells, setBrushedCells] = useState<Record<number, string>>({});
@@ -214,8 +318,27 @@ function ActiveExpedition() {
 
   return (
     <div className="space-y-4">
-      <Panel title={site.name} sub={`Day ${e.startedDay + e.elapsedDays} · ${e.elapsedDays}/${e.totalDays} dig days elapsed · Stratum depth: ${currentDepth}m`}>
+      <Panel title={site.name} sub={`Day ${e.startedDay + e.elapsedDays} · ${e.elapsedDays}/${e.totalDays} dig days elapsed · ${band.name} · ${currentDepth}m`}>
         <Bar value={e.elapsedDays} max={e.totalDays} color="#C28B49" />
+        <div className="panel-elevated p-3 mt-3">
+          <div className="flex justify-between items-baseline">
+            <span className="text-xs uppercase tracking-wider text-[#A2B0B2]">
+              Field hunch <Tooltip text="Every dry dig day sharpens the team's instincts, raising the odds of the next find. A discovery resets it.">ⓘ</Tooltip>
+            </span>
+            <span className="num text-xs" style={{ color: "#8fb8d8" }}>~{Math.round(findChance * 100)}% find odds today</span>
+          </div>
+          <div className="mt-1.5">
+            <Bar value={hunch} max={0.45} color="#8fb8d8" />
+          </div>
+          <p className="text-[0.65rem] text-[#A2B0B2] mt-1.5">
+            {dryDays === 0
+              ? "Fresh momentum — every dry day will sharpen the next attempt."
+              : dryDays < 3
+                ? "A dry spell is building. The team is reading the layer closely."
+                : "The team can feel the layer changing. A find is close."}
+            {" "}Targeting {band.name.toLowerCase()} — {depth === "deep" ? "richer material, higher risk" : depth === "surface" ? "fast, common material, low risk" : "balanced odds and preservation"}.
+          </p>
+        </div>
         {e.pendingDecision ? (
           <div className="panel-elevated p-4 mt-4 gild-flash">
             <div className="tag border-[#C28B49] text-[#C28B49] mb-2">Field decision</div>
@@ -240,7 +363,7 @@ function ActiveExpedition() {
         <div className="panel-elevated p-4">
           <div className="flex justify-between items-baseline mb-2">
             <h4 className="font-display text-sm">Stratigraphic Trench Section</h4>
-            <span className="text-xs text-[#C28B49] num">Excavated: {currentDepth}m / 3.10m</span>
+            <span className="text-xs text-[#C28B49] num">Excavated: {currentDepth}m / {depthTo}m</span>
           </div>
           <p className="text-[0.65rem] text-[#A2B0B2] mb-3">Single-context soil profiling: older cultural horizons lie deeper under alluvial layers.</p>
           <div className="relative border hairline rounded overflow-hidden h-44 flex flex-col font-mono text-[0.65rem]">
